@@ -25,11 +25,11 @@ export default function Privacy() {
       </p>
       <h2>A small amount of data, for a clear reason</h2>
       <p>
-        Signing up is optional. Your details are stored on the website’s server,
+        Signing up is optional. Your details are stored privately in a Supabase database,
         not published or sold. The form does not add your address to a
         third-party email service. The site does not set analytics or
         advertising cookies. Hosting infrastructure may process technical
-        request logs to operate and secure the website.
+        request logs to operate and secure the website. A daily keyed hash of your network address is used for short-lived signup rate limits; the raw address is not stored in the waitlist database.
       </p>
       <h2>Changed your mind?</h2>
       <p>

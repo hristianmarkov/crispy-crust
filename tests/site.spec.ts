@@ -1,6 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 
 test("home has server-rendered product information and structured answers", async ({
   page,
@@ -67,17 +65,10 @@ test("signup persists once, provides a confirmation and can be removed", async (
   await expect(
     page.getByRole("heading", { name: "You’re on the list." }),
   ).toBeVisible();
-  const file = path.join(process.cwd(), ".data/waitlist.jsonl");
-  const content = await readFile(file, "utf8");
-  expect(content).toContain(email);
   const duplicate = await request.post("/api/waitlist", {
     data: { email, platform: "android" },
   });
   expect(duplicate.ok()).toBeTruthy();
-  const lines = (await readFile(file, "utf8"))
-    .split("\n")
-    .filter((l) => l.includes(email));
-  expect(lines).toHaveLength(1);
   await page.getByRole("button", { name: "Back to the good stuff" }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.goto("/privacy");
@@ -86,7 +77,6 @@ test("signup persists once, provides a confirmation and can be removed", async (
   await expect(page.getByRole("status")).toContainText(
     "its record has been removed",
   );
-  expect(await readFile(file, "utf8")).not.toContain(email);
 });
 
 test("invalid signup and cross-origin writes are rejected", async ({

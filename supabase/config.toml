@@ -1,0 +1,3 @@
+[functions.crumb-clock-waitlist]
+# Authenticated by the server-only token checked inside the function.
+verify_jwt = false

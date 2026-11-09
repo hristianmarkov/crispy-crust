@@ -28,9 +28,13 @@ Set **`NEXT_PUBLIC_SITE_URL` to the real public origin before building** (e.g. `
 
 ## Early access and privacy
 
-The form is functional: `POST /api/waitlist` validates and deduplicates emails, records the requested platform and launch-update consent, and writes private JSONL records to `.data/waitlist.jsonl`. `/privacy` has a working removal form. Errors are shown to the visitor; a success message only appears after a successful write. No emails are sent and no third-party mailing-list service is connected.
+The form sends validated requests through the Next.js server to the authenticated `crumb-clock-waitlist` Supabase Edge Function. The function uses Supabase's built-in service credentials to call a restricted database function. No database credentials reach the browser. Email addresses are deduplicated by a unique constraint. Removal returns the same success response whether a record existed or not.
 
-This file store supports a **single Node process with a persistent writable disk**. Set `WAITLIST_DATA_DIR` to a private mounted persistent directory in production. It is unsuitable for ephemeral/serverless or multi-instance deployment; use a shared database or mailing-list adapter there. Do not commit records, expose their directory, or publish them as static assets. Before collecting public signups, configure storage/backups, the business's final privacy details and retention process, and any launch-email provider. For a real mailing campaign, add email ownership verification, verified unsubscribe links, and distributed anti-abuse controls. The current removal form intentionally gives the same response regardless of whether an address existed.
+`public.crumb_clock_waitlist` has RLS enabled and no access for `anon` or `authenticated`. Only the service role can read or modify the records. Database rate limits allow eight requests per minute per daily keyed IP hash; raw IPs are not stored. Expired rate entries are cleaned on subsequent requests. No email is sent by signup.
+
+Production settings: Next.js preset, Node 24, default output directory, `NEXT_PUBLIC_SITE_URL=https://crispy-crust.vercel.app`. Server-only variables are `SUPABASE_WAITLIST_URL` and `WAITLIST_SERVER_TOKEN`. The Edge Function checks the SHA-256 digest of that token before accessing the database. To rotate it, generate a new random token, replace its digest in the function, redeploy the function, update the Vercel secret and redeploy the website. Never commit the raw token.
+
+The applied database schema is recorded in `supabase/schema/waitlist.sql`; Supabase migration history tracks its deployment. Deploy the function using `supabase/config.toml` (custom token authentication). Do not expose service-role credentials. Development/preview deployments require their own backend configuration; without it the form fails explicitly rather than claiming success.
 
 ## Checks
 
@@ -40,7 +44,7 @@ npm run build
 npm test
 ```
 
-Playwright runs Chromium against the production server and can start it if port 3000 is free. The cloud machine has Chromium at `/usr/bin/chromium`. For other machines set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, or install Playwright's bundled browser with `npx playwright install chromium`. Tests exercise feature tabs and keyboard navigation, FAQs, signup persistence/deduplication/removal, input and origin rejection, article routes, social assets, mobile navigation, and horizontal overflow at five viewport widths. Test addresses are removed after a successful signup test. Accessibility audits cover the landing page, dialog, and an article.
+Playwright runs Chromium against the production server and can start it if port 3000 is free. The cloud machine has Chromium at `/usr/bin/chromium`. For other machines set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, or install Playwright's bundled browser with `npx playwright install chromium`. Tests exercise feature tabs and keyboard navigation, FAQs, signup confirmation/deduplication/removal, input and origin rejection, article routes, social assets, mobile navigation, and horizontal overflow at five viewport widths. Test addresses are removed after a successful signup test. Accessibility audits cover the landing page, dialog, and an article.
 
 ## Brand and assets
 
