@@ -43,8 +43,8 @@ export default async function Article({
         "@type": "Article",
         headline: g.title,
         description: g.description,
-        author: { "@type": "Organization", name: "Crumb & Clock" },
-        publisher: { "@type": "Organization", name: "Crumb & Clock" },
+        author: { "@type": "Organization", name: "Crispy Crust" },
+        publisher: { "@type": "Organization", name: "Crispy Crust" },
         mainEntityOfPage: `${siteUrl}/journal/${g.slug}`,
         image: `${siteUrl}/images/social-card.jpg`,
       },
@@ -94,7 +94,7 @@ export default async function Article({
           <span className="eyebrow">{g.eyebrow.toUpperCase()}</span>
           <h1>{g.title}</h1>
           <div className="article-byline">
-            <span>From the Crumb & Clock kitchen</span>
+            <span>From the Crispy Crust kitchen</span>
             <span>{g.readTime}</span>
           </div>
         </header>

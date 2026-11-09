@@ -13,6 +13,7 @@ import {
   Sparkles,
   Wheat,
 } from "lucide-react";
+import { RecipeLibrary, ScheduleExample } from "@/components/bake-story";
 import { Phone } from "@/components/phone";
 import {
   AppShowcase,
@@ -31,13 +32,13 @@ export default function Home() {
       {
         "@type": "Organization",
         "@id": siteUrl + "/#organization",
-        name: "Crumb & Clock",
+        name: "Crispy Crust",
         url: siteUrl,
         logo: siteUrl + "/brand/mark.svg",
       },
       {
         "@type": "WebSite",
-        name: "Crumb & Clock",
+        name: "Crispy Crust",
         url: siteUrl,
         publisher: { "@id": siteUrl + "/#organization" },
       },
@@ -70,10 +71,11 @@ export default function Home() {
             On <em>your</em> time.
           </h1>
           <p className="hero-description">
-            Meet your new sourdough sidekick.
+            Pick your bread. Tell us when you’re free.
             <br />
-            Care for your starter, find your baking rhythm,
-            <br className="desktop-break" /> and make more loaves you love.
+            Get a recipe-specific plan for mixing, folding,
+            <br className="desktop-break" /> proofing and baking — built around
+            your day.
           </p>
           <div className="hero-actions">
             <WaitlistButton>
@@ -151,73 +153,70 @@ export default function Home() {
       </section>
       <div className="promise-strip">
         <span>
-          <Leaf size={18} strokeWidth={1.5} /> A little less waste
+          <Leaf size={18} strokeWidth={1.5} /> Recipes for different flours
         </span>
         <i />
         <span>
-          <Clock3 size={18} strokeWidth={1.5} /> A little more you-time
+          <Clock3 size={18} strokeWidth={1.5} /> Hands-on steps in your free
+          time
         </span>
         <i />
         <span>
-          <Wheat size={18} strokeWidth={1.5} /> A whole lot of good bread
+          <Wheat size={18} strokeWidth={1.5} /> Room for an overnight fridge
+          proof
         </span>
       </div>
       <section className="intro-section section" id="how-it-works">
-        <span className="eyebrow">
-          SOURDOUGH DOESN’T HAVE TO BE YOUR WHOLE PERSONALITY.
-        </span>
+        <span className="eyebrow">A RECIPE IS ONLY HALF THE PLAN</span>
         <h2>
-          You’ve got a life.
+          Your bread. Your calendar.
           <br />
-          Your dough should <em>fit into it.</em>
+          <em>One workable plan.</em>
         </h2>
         <p>
-          The midnight feeds. The “is it ready?” spiral. The perfect loaf
-          <br className="desktop-break" /> you can’t quite recreate. We’re
-          making room for a better way.
+          Choose what you want to bake, add the hours you’re available,
+          <br className="desktop-break" /> and see exactly which steps need your
+          hands.
         </p>
         <div className="pain-cards">
           <div className="pain-card">
             <span className="pain-icon">
-              <Clock3 strokeWidth={1.3} />
+              <Wheat />
             </span>
-            <span className="pain-question">
-              “Wait… when do I need to be home?”
-            </span>
-            <h3>A plan, not a full-time job.</h3>
+            <span className="pain-question">01 / CHOOSE YOUR RECIPE</span>
+            <h3>Start with the bread you want.</h3>
             <p>
-              Work backwards from warm bread on the table. Know when to roll up
-              your sleeves, and when to get on with your day.
+              A white sourdough, a wholemeal loaf or a tray of focaccia. Each
+              recipe has its own formula, stages and timing guidance.
             </p>
           </div>
           <div className="pain-card">
             <span className="pain-icon">
-              <Sparkles strokeWidth={1.3} />
+              <Clock3 />
             </span>
-            <span className="pain-question">
-              “Is my dough doing… the right thing?”
-            </span>
-            <h3>Confidence, one check-in at a time.</h3>
+            <span className="pain-question">02 / ADD YOUR AVAILABILITY</span>
+            <h3>Tell us when you can be there.</h3>
             <p>
-              Learn what to look for in your starter and dough. Useful
-              observations, clear next steps, and a little less second-guessing.
+              Free before work and after 18:00? Mark those windows. The planner
+              looks for a schedule that puts mixing, folds and shaping inside
+              them.
             </p>
           </div>
           <div className="pain-card">
             <span className="pain-icon">
-              <Wheat strokeWidth={1.3} />
+              <Sparkles />
             </span>
-            <span className="pain-question">
-              “How did I make that amazing loaf?”
-            </span>
-            <h3>Keep the magic. And the notes.</h3>
+            <span className="pain-question">03 / ADJUST AS YOU BAKE</span>
+            <h3>A late meeting shouldn’t ruin a loaf.</h3>
             <p>
-              Save the little things that made a big difference. Your formula,
-              your timings, your photos. Ready to do it all again.
+              Update your availability and review the remaining steps. Where the
+              recipe allows, a cold proof can move the bake to tomorrow.
             </p>
           </div>
         </div>
       </section>
+      <RecipeLibrary />
+      <ScheduleExample />
       <AppShowcase />
       <section className="philosophy">
         <div className="philosophy-photo">
@@ -236,17 +235,19 @@ export default function Home() {
         <div className="philosophy-copy">
           <span className="eyebrow">A CALMER KIND OF BAKING</span>
           <h2>
-            Less perfect.
+            Life changes.
             <br />
-            More <em>personal.</em>
+            Your plan <em>can too.</em>
           </h2>
           <p>
             Your kitchen isn’t a lab. Some days are cooler. Some doughs are
             slower. Sometimes, life calls halfway through a fold.
           </p>
           <p>
-            Crumb & Clock is being made for all of it. A little structure when
-            you need it. Room to trust your hands when you don’t.
+            Need to leave before shaping? The planner helps you check whether a
+            fridge pause fits your recipe and what it means for the next step.
+            If the timing cannot work, you’ll see the conflict instead of an
+            impossible plan.
           </p>
           <div className="philosophy-values">
             <span>

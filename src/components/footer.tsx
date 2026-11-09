@@ -42,7 +42,7 @@ export function Footer() {
         </div>
       </div>
       <div className="footer-bottom">
-        <span>© {new Date().getFullYear()} Crumb & Clock</span>
+        <span>© {new Date().getFullYear()} Crispy Crust</span>
         <span className="footer-made">
           Made for slow mornings & impatient bakers.
         </span>

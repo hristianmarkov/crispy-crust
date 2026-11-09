@@ -1,8 +1,8 @@
-# Crumb & Clock
+# Crispy Crust
 
 > An upcoming mobile sourdough baking companion for home bakers. The app is in development; no release date or pricing has been announced. All app screens on this website are design previews.
 
-Planned capabilities include starter feeding and observation records, flexible sourdough bake scheduling, guided active bakes, and a personal recipe and bake journal. Estimates are intended to support dough observations, not replace them.
+Planned capabilities include a recipe collection covering different flours, sourdough loaves and focaccias, recipe-specific timings, daily availability windows, suitable fridge-rest options, starter feeding and observation records, flexible sourdough bake scheduling, guided active bakes, and a personal recipe and bake journal. Estimates are intended to support dough observations, not replace them.
 
 ## Practical sourdough guides
 

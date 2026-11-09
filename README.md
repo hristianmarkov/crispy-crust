@@ -1,6 +1,6 @@
-# Crumb & Clock
+# Crispy Crust
 
-A prelaunch marketing website for the sourdough mobile-app product plan. Original loaf-and-clock identity, editorial art direction, generated sourdough photography, four illustrative app screens, interactive feature tabs, and three substantive baking guides.
+A prelaunch marketing website for the sourdough mobile-app product plan. Original loaf-and-clock identity, editorial art direction, generated sourdough photography, four illustrative app screens, a recipe collection showcase and interactive availability examples, interactive feature tabs, and three substantive baking guides.
 
 ## Run
 

@@ -13,16 +13,16 @@ import { siteUrl, isPublicSite } from "@/lib/site";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Crumb & Clock — Sourdough, on your time.",
-    template: "%s | Crumb & Clock",
+    default: "Crispy Crust — Sourdough, on your time.",
+    template: "%s | Crispy Crust",
   },
   description:
-    "Meet a calmer way to bake sourdough. Crumb & Clock is your upcoming companion for starter care, flexible baking schedules, guided bakes, and a personal bread journal.",
-  applicationName: "Crumb & Clock",
+    "Crispy Crust brings flour-specific sourdough and focaccia recipes, bake plans around your available hours, starter care and a personal bake journal.",
+  applicationName: "Crispy Crust",
   openGraph: {
     type: "website",
     locale: "en_GB",
-    siteName: "Crumb & Clock",
+    siteName: "Crispy Crust",
     title: "Good bread. On your time.",
     description:
       "Your sourdough starter, your baking rhythm, your best loaf yet. A thoughtful mobile baking companion is rising.",
@@ -31,13 +31,13 @@ export const metadata: Metadata = {
         url: "/images/social-card.jpg",
         width: 1200,
         height: 630,
-        alt: "Crumb & Clock — Good bread. On your time.",
+        alt: "Crispy Crust — Good bread. On your time.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Crumb & Clock — Good bread. On your time.",
+    title: "Crispy Crust — Good bread. On your time.",
     description: "A calmer kind of sourdough baking is on its way.",
   },
   robots: { index: isPublicSite, follow: true },

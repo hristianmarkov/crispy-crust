@@ -3,7 +3,7 @@ import { RemoveEmail } from "@/components/remove-email";
 export const metadata: Metadata = {
   title: "Privacy, please",
   description:
-    "How the Crumb & Clock early-access website handles your email address and platform preference.",
+    "How the Crispy Crust early-access website handles your email address and platform preference.",
   alternates: { canonical: "/privacy" },
 };
 export default function Privacy() {
@@ -12,7 +12,7 @@ export default function Privacy() {
       <span className="eyebrow">YOUR DETAILS BELONG TO YOU</span>
       <h1>Privacy, please.</h1>
       <p>
-        This notice covers the early-access website for Crumb & Clock. The
+        This notice covers the early-access website for Crispy Crust. The
         mobile app is in development; its own privacy information will be
         provided before launch.
       </p>

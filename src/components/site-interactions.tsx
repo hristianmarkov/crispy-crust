@@ -118,7 +118,7 @@ export function WaitlistDialog() {
             Fresh from the oven.
           </h2>
           <p>
-            Join the early birds for Crumb & Clock launch news. A calmer kind of
+            Join the early birds for Crispy Crust launch news. A calmer kind of
             baking is on its way.
           </p>
           <form onSubmit={submit}>
@@ -183,10 +183,10 @@ const screens: {
 }[] = [
   {
     id: "today",
-    label: "A little daily clarity",
+    label: "Guided bake",
     number: "01",
     title: "Your next step.\nNot another rabbit hole.",
-    body: "Less scrolling through recipes with flour-covered fingers. Open Today and see what needs you, what can wait, and what’s coming next.",
+    body: "See the next task for your chosen recipe: mix for 15 minutes, return for a fold, or leave the dough to rise. Active steps and waiting stages are shown separately.",
     points: [
       "One home for starters, timers, and bakes",
       "Clear steps for your first loaf or your fiftieth",
@@ -195,7 +195,7 @@ const screens: {
   },
   {
     id: "starter",
-    label: "A happier starter",
+    label: "Starter care",
     number: "02",
     title: "Get to know\nyour little culture.",
     body: "Is it hungry? Has it peaked? Keep a simple record of feeds and rise, and start to recognise your own starter’s rhythm.",
@@ -207,22 +207,22 @@ const screens: {
   },
   {
     id: "planner",
-    label: "Plans with breathing room",
+    label: "Your schedule",
     number: "03",
     title: "A loaf that fits\ninto your life.",
-    body: "Start with when you want to slice. See the hands-on moments, make room for your plans, and adjust when the dough takes its time.",
+    body: "Free from 18:00 to 21:30, then again tomorrow morning? Add those windows. The planner checks whether your recipe can fit, including a fridge proof where suitable.",
     points: [
-      "Plan forwards or backwards from serving time",
+      "Select the hours you’re available each day",
       "Separate hands-on time from waiting time",
-      "Rework upcoming steps when life happens",
+      "Review fridge options and timing conflicts",
     ],
   },
   {
     id: "journal",
-    label: "Your best loaf, again",
+    label: "Bake journal",
     number: "04",
     title: "Less “what did I do?”\nMore “let’s do that again.”",
-    body: "That one beautiful loaf shouldn’t be a happy accident. Keep the formula, timings, photos, and tiny changes that made it yours.",
+    body: "Record the flour blend, hydration, kitchen temperature, actual proof time and a photo of the crumb. Next bake, compare what changed instead of starting from memory.",
     points: [
       "A journal that brings your bake together",
       "Compare the details behind different results",
@@ -256,8 +256,8 @@ export function AppShowcase() {
           to the last lovely slice.
         </h2>
         <p>
-          One thoughtful companion for all the things
-          <br className="desktop-break" /> that go into a good loaf.
+          Your recipe, your available hours and your dough observations
+          <br className="desktop-break" /> connected in one place.
         </p>
       </div>
       <div className="showcase-tabs" role="tablist" aria-label="App features">

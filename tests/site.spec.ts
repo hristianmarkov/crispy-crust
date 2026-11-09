@@ -8,8 +8,8 @@ test("home has server-rendered product information and structured answers", asyn
   const html = await response.text();
   expect(html).toContain("application/ld+json");
   expect(html).toContain("FAQPage");
-  expect(html).toContain("Get to know");
-  expect(html).toContain("Keep the");
+  expect(html).toContain("recipe-specific");
+  expect(html).toContain("Cold proof");
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Good bread.On your time.",
@@ -17,10 +17,10 @@ test("home has server-rendered product information and structured answers", asyn
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   for (const label of [
-    "A happier starter",
-    "Plans with breathing room",
-    "Your best loaf, again",
-    "A little daily clarity",
+    "Starter care",
+    "Your schedule",
+    "Bake journal",
+    "Guided bake",
   ]) {
     await page.getByRole("tab", { name: label }).click();
     await expect(page.getByRole("tab", { name: label })).toHaveAttribute(
@@ -29,11 +29,9 @@ test("home has server-rendered product information and structured answers", asyn
     );
     await expect(page.getByRole("tabpanel")).toBeVisible();
   }
-  await page.getByRole("tab", { name: "A little daily clarity" }).focus();
+  await page.getByRole("tab", { name: "Guided bake" }).focus();
   await page.keyboard.press("ArrowRight");
-  await expect(
-    page.getByRole("tab", { name: "A happier starter" }),
-  ).toBeFocused();
+  await expect(page.getByRole("tab", { name: "Starter care" })).toBeFocused();
   await page
     .getByRole("button", {
       name: "When can I download it? Will it be on iOS and Android?",
@@ -197,4 +195,43 @@ test("landing page, signup dialog and guide pass automated accessibility checks"
       targets: v.nodes.map((n) => n.target),
     })),
   ).toEqual([]);
+});
+
+test("recipe choices and practical scheduling examples explain the product", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Rosemary focaccia" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Out during the day", exact: true })
+    .click();
+  await expect(page.locator(".availability")).toContainText("07:00–08:00");
+  await expect(
+    page.getByRole("heading", { name: "No hands-on tasks" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Plans have changed", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "See your revised next steps" }),
+  ).toBeVisible();
+  await expect(page.locator(".fridge-note")).toContainText(
+    "if no safe fit exists",
+  );
+  for (const width of [360, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const device = await page.locator(".hero-phone").evaluate((el) => {
+      const screen = el.querySelector(".phone-screen") as HTMLElement;
+      return {
+        ratio:
+          (el as HTMLElement).offsetHeight / (el as HTMLElement).offsetWidth,
+        clipped: screen.scrollHeight > screen.clientHeight,
+      };
+    });
+    expect(device.ratio).toBeLessThan(2.1);
+    expect(device.ratio).toBeGreaterThan(1.9);
+    expect(device.clipped).toBe(false);
+  }
 });

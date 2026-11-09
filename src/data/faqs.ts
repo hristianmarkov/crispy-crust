@@ -1,8 +1,18 @@
 export const faqs = [
   {
-    question: "What is Crumb & Clock?",
+    question: "Which recipes will be in Crispy Crust?",
     answer:
-      "Crumb & Clock is an upcoming mobile sourdough baking companion. It brings starter care, flexible bake planning, step-by-step guidance, and a personal bake journal into one place, helping home bakers understand their dough and fit baking around everyday life.",
+      "The planned library covers white, wholemeal and mixed-flour sourdoughs, plus focaccias and other bread styles. Each recipe has its own formula, method and timing guidance. A focaccia’s tray proof and topping stage are different from shaping a country loaf, and the plan reflects that.",
+  },
+  {
+    question: "Can I put the dough in the fridge when plans change?",
+    answer:
+      "Where the recipe and current dough stage support it, the planner can help you use a cold rest or overnight proof and adjust the remaining steps. It does not simply pause fermentation or add arbitrary hours: refrigeration slows the dough, and readiness checks still matter. If the available time cannot work, change your start time or bake day.",
+  },
+  {
+    question: "What is Crispy Crust?",
+    answer:
+      "Crispy Crust is an upcoming mobile sourdough baking companion. It brings starter care, flexible bake planning, step-by-step guidance, and a personal bake journal into one place, helping home bakers understand their dough and fit baking around everyday life.",
   },
   {
     question: "Is it for complete beginners, or experienced bakers?",
@@ -12,17 +22,17 @@ export const faqs = [
   {
     question: "How is this different from a recipe app?",
     answer:
-      "A recipe tells you what to make. Crumb & Clock is being designed to help you actually make it: plan hands-on steps around your day, track your starter, record what your dough is doing, and learn from the results. Your recipe, timeline, and notes stay connected.",
+      "A recipe tells you what to make. Crispy Crust is being designed to help you actually make it: plan hands-on steps around your day, track your starter, record what your dough is doing, and learn from the results. Your recipe, timeline, and notes stay connected.",
   },
   {
     question: "Can I plan sourdough around work and family life?",
     answer:
-      "That’s the idea. Set a target serving time and the times you’re unavailable. The planner is designed to show workable timelines, distinguish hands-on time from waiting, and explain options when a bake runs early or late. Fermentation windows are estimates, not promises.",
+      "Yes — select your available hours, such as before 08:00 and after 18:00. The planner checks hands-on tasks against those windows and uses recipe-supported waiting or cold-proof stages where suitable. If a schedule cannot fit, it highlights the conflict. Fermentation still depends on your dough.",
   },
   {
     question: "Will it tell me exactly when my dough is ready?",
     answer:
-      "Dough follows temperature, ingredients, and biology, not an exact countdown. Crumb & Clock is designed to combine timing estimates with your observations of rise, texture, and temperature, and explain when a useful check-in is needed.",
+      "Dough follows temperature, ingredients, and biology, not an exact countdown. Crispy Crust is designed to combine timing estimates with your observations of rise, texture, and temperature, and explain when a useful check-in is needed.",
   },
   {
     question: "When can I download it? Will it be on iOS and Android?",
