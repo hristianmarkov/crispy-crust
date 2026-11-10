@@ -23,8 +23,8 @@ export function Header() {
           <Link href="/journal" onClick={close}>
             The Baker’s Journal <span className="nav-new">READ</span>
           </Link>
-          <Link href="/#faq" onClick={close}>
-            FAQs
+          <Link href="/tools" onClick={close}>
+            Baking tools
           </Link>
           <button
             className="button button-small nav-mobile-cta"

@@ -38,6 +38,8 @@ export function Footer() {
           <Link href="/#how-it-works">How it works</Link>
           <Link href="/#features">The good stuff</Link>
           <Link href="/journal">The Baker’s Journal</Link>
+          <Link href="/tools">Free baking tools</Link>
+          <Link href="/about">About & editorial policy</Link>
           <Link href="/#faq">FAQs</Link>
         </div>
       </div>

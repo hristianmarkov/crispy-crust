@@ -10,17 +10,19 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { WaitlistDialog } from "@/components/site-interactions";
 import { siteUrl, isPublicSite } from "@/lib/site";
+import { SiteAnalytics } from "@/components/site-analytics";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Crispy Crust — Sourdough, on your time.",
+    default: "Crispy Crust | Sourdough Baking App and Planner",
     template: "%s | Crispy Crust",
   },
   description:
-    "Crispy Crust brings flour-specific sourdough and focaccia recipes, bake plans around your available hours, starter care and a personal bake journal.",
+    "An upcoming sourdough baking app for starter care, recipe-specific schedules and a bake journal. Explore free guides, calculators and printable baking logs.",
   applicationName: "Crispy Crust",
   openGraph: {
     type: "website",
+    url: "/",
     locale: "en_GB",
     siteName: "Crispy Crust",
     title: "Good bread. On your time.",
@@ -41,6 +43,12 @@ export const metadata: Metadata = {
     description: "A calmer kind of sourdough baking is on its way.",
   },
   robots: { index: isPublicSite, follow: true },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : {},
+  },
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
 };
 export const viewport: Viewport = { themeColor: "#f8f7f0" };
@@ -59,6 +67,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <WaitlistDialog />
+        {isPublicSite && <SiteAnalytics />}
       </body>
     </html>
   );

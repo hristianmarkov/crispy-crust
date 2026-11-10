@@ -1,4 +1,5 @@
 "use client";
+import { recordEvent } from "@/lib/analytics";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -40,7 +41,10 @@ export function WaitlistDialog() {
   >("idle");
   const [error, setError] = useState("");
   useEffect(() => {
-    const open = () => ref.current?.showModal();
+    const open = () => {
+      ref.current?.showModal();
+      recordEvent("waitlist_open");
+    };
     window.addEventListener("open-waitlist", open);
     return () => window.removeEventListener("open-waitlist", open);
   }, []);
@@ -68,6 +72,7 @@ export function WaitlistDialog() {
           data.error || "Something went wrong. Please try again.",
         );
       setStatus("success");
+      recordEvent("waitlist_signup_success");
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Please try again.");

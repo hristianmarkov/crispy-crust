@@ -5,6 +5,17 @@ export const metadata: Metadata = {
   description:
     "How the Crispy Crust early-access website handles your email address and platform preference.",
   alternates: { canonical: "/privacy" },
+  openGraph: {
+    title: "Crispy Crust Privacy",
+    description: "Early-access data, privacy-friendly analytics and email removal.",
+    url: "/privacy",
+    images: ["/images/social-card.jpg"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Crispy Crust Privacy",
+    description: "Early-access data, analytics and email removal.",
+  },
 };
 export default function Privacy() {
   return (
@@ -32,6 +43,14 @@ export default function Privacy() {
         request logs to operate and secure the website. A daily keyed hash of your network address is used for short-lived signup rate limits; the raw address is not stored in the waitlist database.
       </p>
       <h2>Changed your mind?</h2>
+      <p>
+        We use Vercel Web Analytics to count page visits and events such as calculator
+        use, printable downloads and successful signups. Analytics receives page
+        paths and tool names, never your email address or calculator entries. We
+        strip query strings and respect Do Not Track and Global Privacy Control.
+        This analytics service does not use cookies. See{" "}
+        <a href="https://vercel.com/docs/analytics/privacy-policy">Vercel’s analytics privacy information</a>.
+      </p>
       <p>
         Use this form to remove an email address from the early-access list. For
         privacy, the response is the same whether an address was on the list or
