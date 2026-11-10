@@ -71,6 +71,8 @@ export default function Home() {
             On <em>your</em> time.
           </h1>
           <p className="hero-description">
+            Crispy Crust is an upcoming sourdough baking app.
+            <br />
             Pick your bread. Tell us when you’re free.
             <br />
             Get a recipe-specific plan for mixing, folding,
@@ -276,7 +278,7 @@ export default function Home() {
           </Link>
         </div>
         <div className="article-grid">
-          {guides.map((guide, i) => (
+          {guides.slice(0, 3).map((guide, i) => (
             <Link
               href={`/journal/${guide.slug}`}
               className={`article-card article-card-${i}`}
@@ -333,6 +335,15 @@ export default function Home() {
               <p>{guide.description}</p>
             </Link>
           ))}
+        </div>
+        <div className="home-tools-links">
+          <h3>A little help for today’s bake.</h3>
+          <p>Free tools, ready to use while the app is in the making.</p>
+          <Link href="/tools/starter-feeding-calculator">Starter feeding calculator</Link>
+          <Link href="/tools/sourdough-schedule-calculator">Plan a baking schedule</Link>
+          <Link href="/tools/sourdough-hydration-calculator">Calculate dough hydration</Link>
+          <Link href="/tools/sourdough-rise-calculator">Measure dough rise</Link>
+          <Link href="/tools/discard-recipe-finder">Find a discard recipe</Link>
         </div>
       </section>
       <Faq />

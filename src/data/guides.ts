@@ -1,3 +1,11 @@
+import importedGuides from "./imported-guides.json";
+
+export type GuideBlock =
+  | { type: "heading"; text: string; id: string; level?: 2 | 3 }
+  | { type: "paragraph"; text: string }
+  | { type: "list"; items: string[]; ordered?: boolean }
+  | { type: "table"; headers: string[]; rows: string[][]; caption?: string };
+
 export interface Guide {
   slug: string;
   title: string;
@@ -11,9 +19,19 @@ export interface Guide {
     bullets?: string[];
   }[];
   faqs: { question: string; answer: string }[];
+  number?: number;
+  seoTitle?: string;
+  category?: string;
+  publishedAt?: string;
+  updatedAt?: string;
+  targetQuery?: string;
+  blocks?: GuideBlock[];
+  sources?: { label: string; url: string }[];
+  relatedSlugs?: string[];
+  downloads?: { label: string; url: string }[];
 }
 
-export const guides: Guide[] = [
+const existingGuides: Guide[] = [
   {
     slug: "sourdough-baking-schedule",
     title: "How to plan sourdough around your day",
@@ -203,4 +221,45 @@ export const guides: Guide[] = [
       },
     ],
   },
+];
+
+// The source document's editorial appendix is excluded from this public content.
+// Each imported guide retains its original permanent path and linked sources.
+export const guides: Guide[] = [
+  ...existingGuides.map((guide) => ({
+    ...guide,
+    publishedAt: "2026-11-09",
+    updatedAt: "2026-11-10",
+    sources:
+      guide.slug === "sourdough-baking-schedule"
+        ? [
+            { label: "The Perfect Loaf · Beginner’s sourdough", url: "https://www.theperfectloaf.com/beginners-sourdough-bread/" },
+            { label: "King Arthur · How to tell when bread is done", url: "https://www.kingarthurbaking.com/blog/2023/05/31/how-to-tell-if-bread-is-done" },
+            { label: "The Perfect Loaf · Proofing guide", url: "https://www.theperfectloaf.com/guides/proofing-bread-dough/" },
+          ]
+        : guide.slug === "when-is-sourdough-starter-ready"
+          ? [
+              { label: "King Arthur · Sourdough starter recipe", url: "https://www.kingarthurbaking.com/recipes/sourdough-starter-recipe" },
+              { label: "King Arthur · The float test", url: "https://www.kingarthurbaking.com/blog/2019/01/02/the-float-test-for-yeast-dough-and-sourdough-starter" },
+              { label: "CSU Extension · Starter best practices", url: "https://extension.colostate.edu/resource/sourdough-starter-best-practices/" },
+            ]
+          : [
+              { label: "The Sourdough Journey · Bulk fermentation timing", url: "https://thesourdoughjourney.com/faq-bulk-fermentation-timing/" },
+              { label: "King Arthur · Dough temperature", url: "https://www.kingarthurbaking.com/pro/reference/dough-temperature" },
+              { label: "The Perfect Loaf · Proofing guide", url: "https://www.theperfectloaf.com/guides/proofing-bread-dough/" },
+            ],
+    category:
+      guide.slug === "sourdough-baking-schedule"
+        ? "Scheduling"
+        : guide.slug === "when-is-sourdough-starter-ready"
+          ? "Starter care"
+          : "Fermentation",
+    relatedSlugs:
+      guide.slug === "sourdough-baking-schedule"
+        ? ["weekend-sourdough-baking-schedule", "sourdough-schedule-for-working-people", "same-day-sourdough-baking-schedule"]
+        : guide.slug === "when-is-sourdough-starter-ready"
+          ? ["sourdough-starter-peak", "sourdough-starter-feeding-ratio", "sourdough-starter-not-rising"]
+          : ["bulk-fermentation-chart", "measure-sourdough-rise-percentage", "sourdough-dough-temperature"],
+  })),
+  ...(importedGuides as Guide[]),
 ];

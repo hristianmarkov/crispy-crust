@@ -1,0 +1,471 @@
+.tools-page {
+  padding-top: 55px;
+  padding-bottom: 90px;
+  max-width: 1220px;
+}
+.tools-heading {
+  max-width: 850px;
+  margin: 24px 0 40px;
+}
+.tools-heading h1 {
+  font-size: clamp(38px, 5vw, 66px);
+  line-height: 1.08;
+  letter-spacing: -1.4px;
+  margin: 15px 0 22px;
+}
+.tools-heading > p {
+  max-width: 720px;
+  font-size: 18px;
+  line-height: 1.75;
+  color: #606651;
+}
+.tools-breadcrumb {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--olive);
+  flex-wrap: wrap;
+}
+.tools-breadcrumb a:hover,
+.tools-prose a:hover {
+  color: #8a7237;
+}
+.tools-directory {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+.tools-directory-card {
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffef8;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  transition: background 0.2s;
+}
+.tools-directory-card:hover {
+  background: #f0f0e1;
+}
+.tools-directory-card h2 {
+  font-size: 30px;
+  line-height: 1.15;
+}
+.tools-directory-card p {
+  line-height: 1.7;
+  color: #606651;
+}
+.tools-link {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: auto;
+}
+.tools-calculator {
+  padding: 32px;
+  background: #eeeee3;
+  border: 1px solid #d9ddcb;
+  border-radius: 10px;
+  margin-bottom: 40px;
+}
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 18px 0 26px;
+}
+.tools-field {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #394130;
+  min-width: 0;
+}
+.tools-field input,
+.tools-field select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #bec5ae;
+  border-radius: 5px;
+  padding: 13px 12px;
+  background: #fffef8;
+  color: var(--ink);
+  height: 48px;
+}
+.tools-result {
+  padding: 26px;
+  background: #fffef8;
+  border-left: 3px solid #88966c;
+  border-radius: 5px;
+  margin: 24px 0;
+  line-height: 1.7;
+}
+.tools-result h2 {
+  font-size: 30px;
+  line-height: 1.15;
+  margin-bottom: 17px;
+}
+.tools-result p + p {
+  margin-top: 10px;
+}
+.tools-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 22px 0;
+}
+.tools-stats div {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+.tools-stats dt {
+  font-size: 12px;
+  color: #606651;
+  margin-bottom: 5px;
+}
+.tools-stats dd {
+  font-family: var(--serif);
+  font-size: 30px;
+  margin: 0;
+  line-height: 1.2;
+}
+.tools-note {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #606651;
+  margin-top: 16px;
+}
+.tools-note a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tools-error {
+  padding: 16px;
+  background: #fff4e5;
+  border-left: 3px solid #94632a;
+  color: #603e1b;
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 20px 0;
+}
+.tools-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0 0;
+}
+.tools-button {
+  border: 1px solid var(--olive);
+  background: var(--olive);
+  color: #fffef8;
+  padding: 12px 19px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.tools-button:hover {
+  background: var(--olive-dark);
+}
+.tools-print {
+  background: transparent;
+  color: var(--olive);
+}
+.tools-print:hover {
+  background: #e3e6d7;
+}
+.tools-prose {
+  max-width: 800px;
+  margin: 42px 0;
+  font-size: 15px;
+  line-height: 1.85;
+}
+.tools-prose h2 {
+  font-size: 31px;
+  line-height: 1.2;
+  margin: 30px 0 16px;
+}
+.tools-prose p + p {
+  margin-top: 18px;
+}
+.tools-prose a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.tools-prose ul {
+  padding-left: 20px;
+  line-height: 2.2;
+}
+.tools-formula {
+  background: #efefe4;
+  border: 1px solid var(--line);
+  padding: 20px;
+  font-size: 15px;
+}
+.tools-table-wrap {
+  width: 100%;
+  overflow: auto;
+  margin: 24px 0;
+}
+.tools-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+  text-align: left;
+  line-height: 1.65;
+  background: #fffef8;
+}
+.tools-table caption {
+  text-align: left;
+  font-weight: 500;
+  padding-bottom: 14px;
+  font-size: 13px;
+}
+.tools-table th,
+.tools-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 15px 13px;
+  vertical-align: top;
+}
+.tools-table thead {
+  background: #dfe4d2;
+}
+.tools-table thead th {
+  font-weight: 500;
+  white-space: nowrap;
+}
+.tools-table tbody th {
+  font-weight: 500;
+  min-width: 160px;
+}
+.tools-table td {
+  min-width: 115px;
+}
+.tools-table small {
+  display: block;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #626956;
+  margin-top: 5px;
+}
+.tools-calculator details {
+  margin: 22px 0;
+}
+.tools-calculator summary {
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 10px 0;
+}
+.tools-next {
+  padding: 32px;
+  background: #e7e8d9;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+.tools-next h2 {
+  font-size: 32px;
+}
+.tools-next p {
+  font-size: 14px;
+  line-height: 1.8;
+  max-width: 650px;
+}
+.tools-recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 20px 0 30px;
+}
+.tools-recipe-card {
+  padding: 24px;
+  background: #fffef8;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tools-recipe-card h2 {
+  font-size: 26px;
+  line-height: 1.2;
+}
+.tools-recipe-card p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+.tools-recipe-card a {
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  line-height: 1.6;
+}
+.tools-count {
+  font-size: 14px;
+  margin-top: 24px;
+  font-weight: 500;
+}
+.tools-calculator a:focus-visible {
+  outline-offset: 3px;
+}
+@media (max-width: 700px) {
+  .tools-page {
+    padding: 32px 22px 60px;
+  }
+  .tools-heading {
+    margin-top: 15px;
+  }
+  .tools-heading h1 {
+    letter-spacing: -0.8px;
+  }
+  .tools-heading > p {
+    font-size: 16px;
+  }
+  .tools-directory {
+    grid-template-columns: 1fr;
+  }
+  .tools-directory-card {
+    padding: 25px;
+  }
+  .tools-calculator {
+    padding: 20px 16px;
+  }
+  .tools-grid {
+    grid-template-columns: 1fr;
+    gap: 17px;
+  }
+  .tools-result {
+    padding: 20px 16px;
+  }
+  .tools-stats {
+    gap: 18px 12px;
+  }
+  .tools-stats dd {
+    font-size: 26px;
+  }
+  .tools-recipe-grid {
+    grid-template-columns: 1fr;
+  }
+  .tools-prose {
+    font-size: 14px;
+  }
+  .tools-table {
+    font-size: 11px;
+  }
+  .tools-next {
+    padding: 25px;
+  }
+  .tools-actions .tools-button {
+    flex: 1;
+    min-width: 130px;
+  }
+}
+@media print {
+  .header,
+  .footer,
+  .tools-breadcrumb,
+  .tools-actions,
+  .tools-print,
+  .tools-next,
+  .tools-directory,
+  .tools-calculator button,
+  .tools-heading .eyebrow {
+    display: none !important;
+  }
+  .tools-page {
+    max-width: none;
+    padding: 0 !important;
+  }
+  .tools-heading h1 {
+    font-size: 28px;
+  }
+  .tools-heading > p {
+    font-size: 12px;
+  }
+  .tools-calculator {
+    border: 1px solid #aaa;
+    background: white;
+    padding: 12px;
+    margin-bottom: 20px;
+  }
+  .tools-result {
+    background: white;
+    border-color: #777;
+    padding: 12px;
+    break-inside: avoid;
+  }
+  .tools-result h2 {
+    font-size: 22px;
+  }
+  .tools-stats dd {
+    font-size: 22px;
+  }
+  .tools-field {
+    font-size: 10px;
+  }
+  .tools-field input,
+  .tools-field select {
+    font-size: 12px;
+    height: 32px;
+    padding: 5px;
+  }
+  .tools-grid {
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tools-prose {
+    font-size: 10px;
+    margin: 22px 0;
+    line-height: 1.6;
+  }
+  .tools-prose h2 {
+    font-size: 18px;
+  }
+  .tools-table-wrap {
+    overflow: visible;
+  }
+  .tools-table {
+    font-size: 8px;
+  }
+  .tools-table td,
+  .tools-table th {
+    padding: 6px;
+    min-width: 0 !important;
+  }
+  .tools-table tr {
+    break-inside: avoid;
+  }
+  .tools-table small {
+    font-size: 7px;
+  }
+  .tools-recipe-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tools-recipe-card {
+    padding: 12px;
+    break-inside: avoid;
+  }
+  .tools-recipe-card h2 {
+    font-size: 18px;
+  }
+  .tools-note {
+    font-size: 10px;
+  }
+  .tools-formula {
+    padding: 10px;
+  }
+  a {
+    color: black !important;
+  }
+}
