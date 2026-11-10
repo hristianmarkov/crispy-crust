@@ -129,6 +129,7 @@ export default function Home() {
               alt="Golden sourdough loaf with leaf scoring, open crumb, and butter in the morning light"
               fill
               priority
+              fetchPriority="high"
               sizes="(max-width: 760px) 100vw, 50vw"
             />
             <div className="photo-grain" />

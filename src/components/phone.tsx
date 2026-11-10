@@ -74,7 +74,7 @@ export function Phone({
       aria-label={`Crispy Crust ${screen} app design preview`}
     >
       <div className="phone-camera" />
-      <div className="phone-screen">
+      <div className="phone-screen" aria-hidden="true">
         <div className="mock-status">
           <span>9:41</span>
           <span>▮▮▮ ▰</span>
