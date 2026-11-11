@@ -1,4 +1,5 @@
--- Crispy Crust app backend. Separate from marketing/waitlist project.
+-- Crispy Crust app namespaces in the owner-approved shared project.
+-- Only cc_* / app_private objects; marketing waitlist objects remain untouched.
 -- Apply as migration owner. Client writes go through checked commands, never table DML.
 create schema if not exists app_private;
 revoke all on schema app_private from public;
@@ -650,7 +651,8 @@ create function public.cc_list_members(p_kitchen uuid)returns jsonb language sql
 revoke execute on function public.cc_list_members(uuid),app_private.cc_list_members(uuid)from public,anon,authenticated;
 grant execute on function public.cc_list_members(uuid),app_private.cc_list_members(uuid)to authenticated;
 
--- Supabase Storage policy layer, applied only to the separate app project.
+-- Supabase Storage policy layer for the private app-only kitchen-media bucket.
+-- Approved shared project; existing marketing storage/policies are untouched.
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('kitchen-media','kitchen-media',false,10485760,array['image/jpeg','image/png','image/webp'])
 on conflict(id) do nothing;

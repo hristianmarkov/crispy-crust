@@ -18,8 +18,8 @@ void main(){
       final font=FontLoader('DM Sans')..addFont(rootBundle.load('assets/brand/DMSans-Variable.ttf'));await font.load();
     });
     final db=LocalDatabase.memory();
-    final catalogue=jsonDecode(await rootBundle.loadString('assets/catalogue.json')) as Map<String,dynamic>;
-    final store=LocalAppStore(db,catalogue);await store.load();
+    late LocalAppStore store;
+    await tester.runAsync(()async{final catalogue=jsonDecode(await rootBundle.loadString('assets/catalogue.json')) as Map<String,dynamic>;store=LocalAppStore(db,catalogue);await store.load();});
     final boundary=GlobalKey();
     await tester.pumpWidget(MaterialApp(theme:buildTheme(false),home:RepaintBoundary(key:boundary,child:MainScreen(store:store))));
     await tester.pumpAndSettle();
@@ -27,11 +27,8 @@ void main(){
       if(title!='Today'){await tester.tap(find.text(title).last);await tester.pumpAndSettle();}
       expect(tester.takeException(),isNull);
       final render=boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      final image=await render.toImage(pixelRatio:2);
-      final bytes=await image.toByteData(format:ui.ImageByteFormat.png);
-      await tester.runAsync(()async{final folder=await Directory('build/screenshots').create(recursive:true);await File('${folder.path}/${title.toLowerCase()}.png').writeAsBytes(bytes!.buffer.asUint8List());});
-      image.dispose();
+      await tester.runAsync(()async{final image=await render.toImage(pixelRatio:2);final bytes=await image.toByteData(format:ui.ImageByteFormat.png);final folder=await Directory('build/screenshots').create(recursive:true);await File('${folder.path}/${title.toLowerCase()}.png').writeAsBytes(bytes!.buffer.asUint8List());image.dispose();});
     }
-    await tester.pumpWidget(const SizedBox());await db.close();
+    await tester.pumpWidget(const SizedBox());await tester.runAsync(()=>db.close());
   });
 }

@@ -1,6 +1,6 @@
 # Crispy Crust app backend
 
-An isolated Supabase project for the Flutter app. This directory does **not** change or depend on the marketing site's waitlist database. No hosted project has been created, linked, migrated or deployed by this implementation.
+The Flutter app uses the explicitly approved existing Supabase project `wpxeuwknbuxbtkkkmcsm` (Multiple ones / Markov). Its database objects are isolated by `public.cc_*` names and the non-exposed `app_private` schema; its media uses the private `kitchen-media` bucket. The existing marketing waitlist objects remain separate and are not read or modified by the app commands. The owner approved sharing the project after the initial plan recommended a separate project. Namespace isolation does not provide separate billing, Auth configuration or failure isolation. No new hosted project was provisioned.
 
 ## Run verification
 
@@ -16,7 +16,7 @@ The Supabase CLI is pinned in package-lock.json. It was verified as v3 during im
 
 ## Deployment boundary
 
-Before deployment select a new app organisation/project/region and supply server secrets through the owner-controlled vault. Configure OAuth redirect allowlists and production email sender. Keep development/staging/production separate. Apply migrations and advisors in development, run actual Auth/gateway/Storage isolation tests, then review the deployment. Do not deploy to the existing waitlist project.
+The current approved deployment target is `wpxeuwknbuxbtkkkmcsm`. Both app migrations have been applied by the coordinating agent; its verification found the app tables protected by RLS, the waitlist untouched, and no new security-advisor findings. Recheck that evidence when deploying a new version. Do not rename, drop or broaden access to waitlist objects. Supply server secrets through the owner-controlled vault and verify OAuth redirect allowlists/production email sender before changing shared Auth settings. Continue to use local/staging verification for future migrations; do not treat a successful schema deployment as complete Auth/gateway/Storage/provider acceptance.
 
 Function entrypoints are configured in `supabase/config.toml`. `app-api` verifies bearer tokens using Supabase Auth and forwards the original token to PostgREST/RLS; it never uses a service key. The server-only scheduled `job-worker` requires `JOB_WORKER_SECRET`, uses service credentials to lease one durable job, and acknowledges it with the exact lease token. Configure a platform scheduler to POST that worker and monitor retry-exhausted/failed jobs. No successful queueing claim means processing is finished.
 
@@ -95,3 +95,17 @@ Configure the RevenueCat project/store products and secret REST API key, and ens
 Deploy `revenuecat-webhook` separately, configure an exact Authorization header and enable provider HMAC signing. Both credentials are required. It verifies `X-RevenueCat-Webhook-Signature` over the **raw** request bytes using HMAC-SHA256 and a five-minute delivery timestamp tolerance, then re-reads the subscriber from the server API. It does not derive paid state from arbitrary webhook/client fields. Event IDs/hashes are persisted idempotently, and older provider snapshots cannot overwrite newer state. Restore/renewal/refund/out-of-order delivery still require actual store sandbox/provider acceptance tests; no payment or purchase has been executed by this task.
 
 Primary references: [RevenueCat webhook HMAC](https://www.revenuecat.com/docs/integrations/webhooks#webhook-signature-verification-hmac), [RevenueCat REST v1](https://www.revenuecat.com/docs/api-v1), [Supabase signed uploads](https://supabase.com/docs/reference/javascript/file-buckets-createsigneduploadurl), [Storage implementation](https://github.com/supabase/storage-js/blob/main/src/packages/StorageFileApi.ts).
+
+## Function deployment file manifests
+
+`app-api` has a thin entrypoint and a tested `runtimeConfig` factory. That factory wires `RestMediaService` when `MEDIA_UPLOADS_ENABLED=true` and the server service key exists; it wires `RevenueCatService` when the RevenueCat server key and service key exist. Disabled/unconfigured adapters return explicit 503 responses. Strict lowercase `true` enables flags; other strings do not. Core Auth/PostgREST requests retain the caller's token. Server adapters never expose private keys to app configuration or responses.
+
+Deploy complete dependency sets with paths preserved:
+
+- **app-api**, entrypoint `app-api/index.ts`: `app-api/index.ts`, `runtime.ts`, `router.ts`, `deletion.ts`, `media.ts`, `billing.ts` (all companion files under `app-api/`).
+- **job-worker**, entrypoint `job-worker/index.ts`: that entrypoint plus `app-api/jobs.ts`, `media.ts`, `router.ts`, `billing.ts`, `deletion.ts`.
+- **revenuecat-webhook**, entrypoint `revenuecat-webhook/index.ts`: that entrypoint plus `app-api/billing.ts`, `media.ts`, `router.ts`, `deletion.ts`.
+
+No npm runtime packages are required by these Edge modules. The function config disables gateway JWT verification because app-api verifies tokens through Auth, the worker requires its separate bearer secret, and the RevenueCat endpoint requires both its configured Authorization header and raw-body HMAC. Never deploy an entrypoint without its corresponding verification layer.
+
+The worker requires `JOB_WORKER_SECRET` in the server vault. Configure the scheduler to POST its endpoint with that bearer secret. Do not place it in public application environment variables, source, logs or this document. The root coordinator owns scheduling/secret setup; a function deployment alone does not prove jobs are scheduled.

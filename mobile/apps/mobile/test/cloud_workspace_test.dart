@@ -24,7 +24,7 @@ void main(){
   Future<void> mount(WidgetTester tester)async{await tester.binding.setSurfaceSize(const Size(500,1000));addTearDown(()=>tester.binding.setSurfaceSize(null));await tester.pumpWidget(MaterialApp(home:CloudWorkspaceScreen.withApi(store:store,api:api)));await tester.pumpAndSettle();}
   Future<void> settleDialog(WidgetTester tester)async{await tester.pumpAndSettle();await tester.pump(const Duration(milliseconds:300));await tester.pumpAndSettle();}
   testWidgets('opening cloud workspace reads membership but never uploads local records', (tester)async{
-    await store.save('starter',{'name':'Private starter','hydration':100});
+    await tester.runAsync(()=>store.save('starter',{'name':'Private starter','hydration':100}));
     await mount(tester);
     expect(api.calls.map((c)=>c['path']),['/kitchens']);
     expect(find.text('Cloud kitchen'),findsOneWidget);
@@ -32,7 +32,7 @@ void main(){
     expect(store.records('starter'),hasLength(1));
   });
   testWidgets('coach preview excludes unrelated private observation text and cancelling uploads nothing',(tester)async{
-    await store.save('observation',{'objectId':'local-bake','temperature':'23','rise':'30','note':'PRIVATE-NOTE-DO-NOT-UPLOAD','occurredAt':'2026-11-11T12:00:00Z'});
+    await tester.runAsync(()=>store.save('observation',{'objectId':'local-bake','temperature':'23','rise':'30','note':'PRIVATE-NOTE-DO-NOT-UPLOAD','occurredAt':'2026-11-11T12:00:00Z'}));
     await mount(tester);
     await tester.tap(find.text('Help & jobs'));await tester.pumpAndSettle();
     await tester.tap(find.byType(CheckboxListTile).first);await tester.pumpAndSettle();

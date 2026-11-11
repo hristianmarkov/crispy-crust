@@ -1,4 +1,5 @@
--- Supabase Storage policy layer, applied only to the separate app project.
+-- Supabase Storage policy layer for the private app-only kitchen-media bucket.
+-- Approved shared project; existing marketing storage/policies are untouched.
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('kitchen-media','kitchen-media',false,10485760,array['image/jpeg','image/png','image/webp'])
 on conflict(id) do nothing;

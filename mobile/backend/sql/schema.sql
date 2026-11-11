@@ -1,4 +1,5 @@
--- Crispy Crust app backend. Separate from marketing/waitlist project.
+-- Crispy Crust app namespaces in the owner-approved shared project.
+-- Only cc_* / app_private objects; marketing waitlist objects remain untouched.
 -- Apply as migration owner. Client writes go through checked commands, never table DML.
 create schema if not exists app_private;
 revoke all on schema app_private from public;

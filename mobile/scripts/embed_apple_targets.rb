@@ -3,6 +3,7 @@
 require 'xcodeproj'
 require 'fileutils'
 require 'json'
+require_relative 'apple_phase_order'
 
 mobile = File.expand_path('..', __dir__)
 ios = File.join(mobile, 'apps/mobile/ios')
@@ -88,6 +89,7 @@ watch = add_target(project, 'CrispyWatch', :watchos, '9.0', [watch_file, core_fi
 widget = add_target(project, 'CrispyWidgets', :ios, '16.2', [widget_file], widget_plist, "#{bundle_id}.widgets")
 embed(project, runner, widget, 'Embed Crispy Widgets', '', '13')
 embed(project, runner, watch, 'Embed Crispy Watch', '$(CONTENTS_FOLDER_PATH)/Watch', '16')
+order_companion_embed_phases(runner)
 group_identifier = 'group.app.crispycrust.shared'
 runner_entitlements = File.join(ios, 'Runner/CrispyRunner.entitlements')
 widget_entitlements = File.join(widget_dir, 'CrispyWidgets.entitlements')

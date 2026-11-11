@@ -378,3 +378,42 @@ test("community and staff endpoints route to commands, preserving pending modera
   );
   assert.equal(calls.at(-1)?.params.p_expected_revision, 1);
 });
+
+test("runtime wires media and billing adapters only with server configuration", async () => {
+  const { runtimeConfig } = await import("../functions/app-api/runtime.ts");
+  const values: Record<string, string> = {
+    SUPABASE_URL: "https://backend.test",
+    SUPABASE_ANON_KEY: "public-key",
+    SUPABASE_SERVICE_ROLE_KEY: "server-only",
+    REVENUECAT_API_KEY: "revenuecat-secret",
+    REVENUECAT_ENTITLEMENT_KEYS: "pro",
+    REVENUECAT_ENVIRONMENT: "SANDBOX",
+    MEDIA_UPLOADS_ENABLED: "true",
+    IMAGE_JOBS_ENABLED: "true",
+    AI_JOBS_ENABLED: "true",
+    IMPORT_JOBS_ENABLED: "true",
+  };
+  const configured = runtimeConfig((name) => values[name]);
+  assert.ok(configured.media);
+  assert.ok(configured.billing);
+  assert.equal(configured.imageEnabled, true);
+  assert.equal(configured.coachEnabled, true);
+  assert.equal(configured.importEnabled, true);
+  const withoutKey = runtimeConfig((name) =>
+    name === "SUPABASE_SERVICE_ROLE_KEY" ? undefined : values[name],
+  );
+  assert.equal(withoutKey.media, undefined);
+  assert.equal(withoutKey.billing, undefined);
+  assert.equal(withoutKey.imageEnabled, false);
+  assert.equal(withoutKey.coachEnabled, false);
+  assert.equal(withoutKey.importEnabled, false);
+  const disabled = runtimeConfig((name) =>
+    name.endsWith("_ENABLED") ? "false" : values[name],
+  );
+  assert.equal(disabled.media, undefined);
+  assert.equal(disabled.imageEnabled, false);
+  const invalidFlag = runtimeConfig((name) =>
+    name === "MEDIA_UPLOADS_ENABLED" ? "TRUE" : values[name],
+  );
+  assert.equal(invalidFlag.media, undefined);
+});

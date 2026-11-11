@@ -96,7 +96,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
   testWidgets('manual observation needs no camera permission and keeps unknown photo empty', (tester) async {
-    final starter = await store.save('starter', {'name':'Manual jar','hydration':100,'flour':'Bread flour','storage':'counter'});
+    final starter = (await tester.runAsync(()=>store.save('starter', {'name':'Manual jar','hydration':100,'flour':'Bread flour','storage':'counter'})))!;
     await mount(tester, screen: StarterDetail(store:store,id:starter.id));
     await tester.tap(find.text('Record rise or temperature'));
     await tester.pumpAndSettle();
