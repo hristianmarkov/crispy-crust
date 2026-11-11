@@ -25,7 +25,7 @@ targets:
         WKApplication: true
         WKWatchOnly: true
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: app.crispycrust.watch
+      PRODUCT_BUNDLE_IDENTIFIER: app.crispycrust.mobile.watch
       GENERATE_INFOPLIST_FILE: YES
   CrispyWidgets:
     type: app-extension
@@ -38,6 +38,6 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: app.crispycrust.widgets
+      PRODUCT_BUNDLE_IDENTIFIER: app.crispycrust.mobile.widgets
       GENERATE_INFOPLIST_FILE: YES
       APPLICATION_EXTENSION_API_ONLY: YES

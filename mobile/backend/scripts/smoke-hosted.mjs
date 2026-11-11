@@ -12,7 +12,7 @@ const missing=await request(endpoint);
 assert.equal(missing.status,401,'Anonymous app API must be denied');
 assert.match(missing.body,/AUTH_REQUIRED/);
 const invalid=await request(endpoint,{Authorization:'Bearer invalid-development-test-token'});
-assert.equal(invalid.status,401,'Invalid access token must be denied');
+assert.ok([401,403].includes(invalid.status),'Invalid access token must be denied by gateway or Auth');
 const wrongOrigin=await request(endpoint,{Origin:'https://untrusted.invalid'});
 assert.equal(wrongOrigin.status,403,'Unapproved browser origin must be denied');
 for(const table of ['cc_kitchens','cc_profiles','crumb_clock_waitlist']) {

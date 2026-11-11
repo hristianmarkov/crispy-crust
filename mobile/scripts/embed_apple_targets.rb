@@ -63,8 +63,11 @@ def add_target(project, name, platform, deployment, files, plist_path, identifie
   target
 end
 
-bundle_id = runner.build_configurations.first.build_settings['PRODUCT_BUNDLE_IDENTIFIER']
-bundle_id = 'app.crispycrust.crispy_crust' if bundle_id.nil? || bundle_id.include?('$')
+bundle_id = 'app.crispycrust.mobile'
+runner.build_configurations.each { |config| config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = bundle_id }
+project.targets.select { |target| target.name == 'RunnerTests' }.each do |target|
+  target.build_configurations.each { |config| config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = "#{bundle_id}.RunnerTests" }
+end
 watch_dir = File.join(companions, 'Watch')
 widget_dir = File.join(companions, 'Widgets')
 FileUtils.mkdir_p([watch_dir, widget_dir])

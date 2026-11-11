@@ -98,6 +98,8 @@ jobs:
       - name: Wear OS debug build
         working-directory: mobile/apps/mobile/android
         run: ./gradlew :wear:assembleDebug
+      - name: Verify phone and watch package/signing identity
+        run: python3 mobile/scripts/verify_android_identity.py
       - uses: actions/upload-artifact@v4
         with:
           name: wearos-debug

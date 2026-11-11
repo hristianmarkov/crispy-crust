@@ -13,17 +13,42 @@ class LocalNotificationGateway implements ReminderGateway {
   bool get supported => !kIsWeb && (defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS);
 
+  Future<void>? _initialization;
+  void Function(String?)? _onOpen;
+  bool _launchedFromNotification = false;
+  bool _launchDelivered = false;
+  String? _launchPayload;
+
   Future<CapabilityResult<bool>> initialize({void Function(String?)? onOpen}) async {
+    if (onOpen != null) { _onOpen = onOpen; }
     if (!supported) { return const CapabilityResult(CapabilityStatus.unsupported,
       'Native reminders are available on iOS and Android. In-app deadlines remain visible.'); }
+    if (!_initialized) {
+      try { await (_initialization ??= _initializeNative()); }
+      catch (_) { _initialization = null; rethrow; }
+    }
+    if (_launchedFromNotification && !_launchDelivered && _onOpen != null) {
+      _launchDelivered = true;
+      _onOpen!(_launchPayload);
+    }
+    return const CapabilityResult.available(true);
+  }
+
+  Future<void> _initializeNative() async {
     tz_data.initializeTimeZones();
     await plugin.initialize(settings: const InitializationSettings(
       android: AndroidInitializationSettings('@drawable/ic_notification'),
       iOS: DarwinInitializationSettings(requestAlertPermission: false,
         requestBadgePermission: false, requestSoundPermission: false)),
-      onDidReceiveNotificationResponse: (response) => onOpen?.call(response.payload));
+      onDidReceiveNotificationResponse: (response) {
+        if (response.notificationResponseType != NotificationResponseType.notificationDismissed) {
+          _onOpen?.call(response.payload);
+        }
+      });
+    final launch = await plugin.getNotificationAppLaunchDetails();
+    _launchedFromNotification = launch?.didNotificationLaunchApp ?? false;
+    _launchPayload = launch?.notificationResponse?.payload;
     _initialized = true;
-    return const CapabilityResult.available(true);
   }
 
   /// Request only after the user opts into a useful reminder.

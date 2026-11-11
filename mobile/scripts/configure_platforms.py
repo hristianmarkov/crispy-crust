@@ -2,6 +2,7 @@
 """Idempotent native configuration. Never writes secrets or signing identities."""
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import xml.etree.ElementTree as ET
 
@@ -35,6 +36,7 @@ if android.exists():
     application = element.find('application')
     application.set(f'{{{ns}}}label', 'Crispy Crust')
     activity = application.find('activity')
+    activity.set(f'{{{ns}}}name', 'app.crispycrust.crispy_crust.MainActivity')
     if not any(x.find("data") is not None and x.find('data').get(f'{{{ns}}}scheme') == 'app.crispycrust'
                for x in activity.findall('intent-filter')):
         intent = ET.SubElement(activity, 'intent-filter')
@@ -58,8 +60,12 @@ if android.exists():
         ET.SubElement(intent, 'action', {f'{{{ns}}}name': 'android.intent.action.TTS_SERVICE'})
     ET.indent(tree, space='    ')
     tree.write(manifest, encoding='unicode', xml_declaration=True)
-    if not any(x.get(f'{{{ns}}}name') == '.KitchenWidget' for x in application.findall('receiver')):
-        receiver = ET.SubElement(application, 'receiver', {f'{{{ns}}}name': '.KitchenWidget', f'{{{ns}}}exported': 'false'})
+    widget_class = 'app.crispycrust.crispy_crust.KitchenWidget'
+    for receiver in application.findall('receiver'):
+        if receiver.get(f'{{{ns}}}name') == '.KitchenWidget':
+            receiver.set(f'{{{ns}}}name', widget_class)
+    if not any(x.get(f'{{{ns}}}name') == widget_class for x in application.findall('receiver')):
+        receiver = ET.SubElement(application, 'receiver', {f'{{{ns}}}name': widget_class, f'{{{ns}}}exported': 'false'})
         intent = ET.SubElement(receiver, 'intent-filter')
         ET.SubElement(intent, 'action', {f'{{{ns}}}name': 'android.appwidget.action.APPWIDGET_UPDATE'})
         ET.SubElement(receiver, 'meta-data', {f'{{{ns}}}name': 'android.appwidget.provider', f'{{{ns}}}resource': '@xml/kitchen_widget_info'})
@@ -78,6 +84,8 @@ if android.exists():
     gradle = android / 'app/build.gradle.kts'
     if gradle.exists():
         text = gradle.read_text()
+        text = re.sub(r'namespace\s*=\s*"[^"]+"', 'namespace = "app.crispycrust.crispy_crust"', text)
+        text = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "app.crispycrust.mobile"', text)
         if 'isCoreLibraryDesugaringEnabled' not in text:
             text = text.replace('compileOptions {', 'compileOptions {\n        isCoreLibraryDesugaringEnabled = true')
         if 'desugar_jdk_libs' not in text:
@@ -85,6 +93,8 @@ if android.exists():
         if 'play-services-wearable' not in text:
             text += '\n\ndependencies {\n    implementation("com.google.android.gms:play-services-wearable:19.0.0")\n}\n'
         gradle.write_text(text)
+    ET.indent(tree, space='    ')
+    tree.write(manifest, encoding='unicode', xml_declaration=True)
     settings = android / 'settings.gradle.kts'
     if settings.exists() and 'include(":wear")' not in settings.read_text():
         with settings.open('a') as output:

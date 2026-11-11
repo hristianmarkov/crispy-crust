@@ -12,3 +12,7 @@ The phone platform adapters and deterministic tests are under `apps/mobile/lib/p
 Permission denied, unsupported platform, stale sensor/watch data and missing cloud configuration are explicit states. Local notification delivery remains subject to OS permissions, Focus/DND, battery behaviour, device power and Android force-stop. No unattended background camera or universal probe/watch support is claimed.
 
 Outstanding physical/owner gates: Apple/Google signing/accounts; named minimum/device matrix; notification denial/reboot/OEM tests; app-group/extension provisioning; BLE model/protocol verification; watch pairing/reconnect/stale/replay tests; production backend URL/publishable key; OAuth provider/sender/redirect setup. No production account keys belong in source.
+
+## Provisional product identity
+
+Phone Android applicationId, Wear OS applicationId and iOS Runner bundle ID are `app.crispycrust.mobile`. Apple companion bundle IDs are `.watch` and `.widgets` beneath that identifier. Android namespaces/Kotlin class packages remain `app.crispycrust.crispy_crust` for the phone and `app.crispycrust.wear` for Wear; manifests use full class names so applicationId changes cannot redirect components. Data Layer connectivity additionally requires matching phone/watch signing certificates. The identifiers are build defaults, not a claim of store registration; the owner must confirm them before enrolment/signing. The auth URL scheme remains `app.crispycrust` and is independent of package identity.

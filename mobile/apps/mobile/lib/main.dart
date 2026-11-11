@@ -41,7 +41,23 @@ class _CrispyCrustAppState extends State<CrispyCrustApp> with WidgetsBindingObse
       final bake=widget.store.find(action.bakeId);if(bake==null)return false;
       if(action.type=='open'){navigator.currentState?.push(MaterialPageRoute(builder:(_)=>BakeDetail(store:widget.store,id:action.bakeId)));return true;}
       return widget.store.acknowledgeCompanion(operationId:action.operationId,bakeId:action.bakeId,stepId:action.stepId,expectedRevision:action.expectedRevision);
-    });changed();}
+    });unawaited(initializeReminders());changed();}
+  Future<void> initializeReminders() async {
+    try{
+      await gateway.initialize(onOpen:(payload){
+        if(payload==null)return;
+        try{final data=jsonDecode(payload) as Map;final id=data['aggregateId'];if(id is String)openAggregate(id);}catch(_){/* Ignore malformed external payloads. */}
+      });
+    }catch(_){/* Native capability is checked at the point of use. */}
+  }
+  void openAggregate(String id){
+    WidgetsBinding.instance.addPostFrameCallback((_){
+      if(!mounted)return;
+      final record=widget.store.find(id);if(record==null)return;
+      if(record.kind=='bake')navigator.currentState?.push(MaterialPageRoute(builder:(_)=>BakeDetail(store:widget.store,id:id)));
+      if(record.kind=='starter')navigator.currentState?.push(MaterialPageRoute(builder:(_)=>StarterDetail(store:widget.store,id:id)));
+    });
+  }
   void changed(){
     debounce?.cancel();
     debounce=Timer(const Duration(milliseconds:300),()async{

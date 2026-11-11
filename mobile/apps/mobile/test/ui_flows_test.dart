@@ -25,6 +25,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(theme: buildTheme(false), builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)), child: child!), home: screen ?? MainScreen(store: store)));
     await tester.pumpAndSettle();
   }
+  Finder pageScroll(String key) => find.descendant(of:find.byKey(ValueKey(key)),matching:find.byType(Scrollable)).first;
   Finder field(String label) => find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == label);
 
   testWidgets('fresh local kitchen shows value without forced account and five navigation tabs', (tester) async {
@@ -70,10 +71,10 @@ void main() {
     final recipe = store.recipes.first;
     await mount(tester, screen: PlanScreen(store: store, initialRecipe: recipe, standalone: true));
     final button = find.widgetWithText(FilledButton, 'Create and review bake plan');
-    await tester.ensureVisible(button);
+    await tester.scrollUntilVisible(button,200,scrollable:pageScroll('plan-scroll'));
     expect(tester.widget<FilledButton>(button).onPressed, isNull);
     final consent = find.byType(CheckboxListTile);
-    await tester.ensureVisible(consent);
+    await tester.scrollUntilVisible(consent,-200,scrollable:pageScroll('plan-scroll'));
     await tester.tap(consent);
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
@@ -101,7 +102,7 @@ void main() {
     await tester.tap(find.text('Record rise or temperature'));
     await tester.pumpAndSettle();
     await tester.enterText(field('Temperature (°C, optional)'), '23');
-    await tester.scrollUntilVisible(find.text('Save actual observation'), 250);
+    await tester.scrollUntilVisible(find.text('Save actual observation'), 250, scrollable:pageScroll('observation-scroll'));
     await tester.tap(find.text('Save actual observation'));
     await tester.pumpAndSettle();
     expect(store.records('observation'),hasLength(1));
@@ -117,7 +118,7 @@ void main() {
     final noteField=field('What can you see or feel? (optional)');
     await tester.ensureVisible(noteField);
     await tester.enterText(noteField,'Bubbly; peak not observed');
-    await tester.scrollUntilVisible(find.text('Choose a photo'),200);
+    await tester.scrollUntilVisible(find.text('Choose a photo'),200,scrollable:pageScroll('observation-scroll'));
     await tester.tap(find.text('Choose a photo'));await tester.pumpAndSettle();
     expect(pickerCalls,1);
     expect(tester.widget<TextField>(noteField).controller!.text,'Bubbly; peak not observed');
@@ -130,7 +131,7 @@ void main() {
     await mount(tester,screen:ObservationCaptureScreen(store:store,objectId:'local-bake',starter:false,media:media));
     final noteField=field('What can you see or feel? (optional)');
     await tester.enterText(noteField,'Dough still feels dense');
-    await tester.scrollUntilVisible(find.text('Take a photo'),200);
+    await tester.scrollUntilVisible(find.text('Take a photo'),200,scrollable:pageScroll('observation-scroll'));
     await tester.tap(find.text('Take a photo'));await tester.pumpAndSettle();
     expect(tester.widget<TextField>(noteField).controller!.text,'Dough still feels dense');
     expect(find.textContaining('Photo was not attached:'),findsOneWidget);

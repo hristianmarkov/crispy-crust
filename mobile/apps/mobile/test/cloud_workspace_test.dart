@@ -27,7 +27,8 @@ void main(){
     await tester.runAsync(()=>store.save('starter',{'name':'Private starter','hydration':100}));
     await mount(tester);
     expect(api.calls.map((c)=>c['path']),['/kitchens']);
-    expect(find.text('Cloud kitchen'),findsOneWidget);
+    expect(find.widgetWithText(AppBar,'Cloud kitchen'),findsOneWidget);
+    expect(find.text('Home · personal'),findsOneWidget);
     expect(find.textContaining('Local library backup remains unchanged'),findsOneWidget);
     expect(store.records('starter'),hasLength(1));
   }, timeout: const Timeout(Duration(seconds:60)));
@@ -37,6 +38,7 @@ void main(){
     await tester.tap(find.text('Help & jobs'));await tester.pumpAndSettle();
     await tester.tap(find.byType(CheckboxListTile).first);await tester.pumpAndSettle();
     await tester.tap(find.text('Preview and request coach help'));await tester.pumpAndSettle();
+    expect(find.byType(LinearProgressIndicator),findsNothing);
     await tester.enterText(find.byType(TextField),'What should I check next?');
     await tester.tap(find.text('Continue'));await settleDialog(tester);
     expect(find.text('Send only this context to the coach?'),findsOneWidget);
@@ -49,6 +51,7 @@ void main(){
   testWidgets('confirmed coach request grants exact consent before queueing and shows no invented answer',(tester)async{
     await mount(tester);await tester.tap(find.text('Help & jobs'));await tester.pumpAndSettle();
     await tester.tap(find.text('Preview and request coach help'));await tester.pumpAndSettle();
+    expect(find.byType(LinearProgressIndicator),findsNothing);
     await tester.enterText(find.byType(TextField),'How do I record an unknown peak?');
     await tester.tap(find.text('Continue'));await settleDialog(tester);
     await tester.tap(find.text('Confirm selected action'));await settleDialog(tester);
@@ -65,4 +68,19 @@ void main(){
     expect(find.textContaining('PROVIDER_UNAVAILABLE'),findsOneWidget);
     expect(api.calls,hasLength(1));
   }, timeout: const Timeout(Duration(seconds:60)));
+  test('actual sync id alias preserves multiple records and applies only matching tombstones/revisions',(){
+    final records=projectCloudRecordChanges({'changes':[
+      {'id':'a','operation':'upsert','revision':1,'payload':{'data':{'name':'A'}}},
+      {'id':'b','operation':'upsert','revision':1,'payload':{'data':{'name':'B'}}},
+      {'id':'a','operation':'event','revision':2},
+      {'id':'c','operation':'upsert','revision':1,'payload':{'data':{'name':'C'}}},
+      {'id':'c','operation':'tombstone','revision':2},
+    ],'has_more':false});
+    expect(records.map((r)=>r['id']),['a','b']);
+    expect(records.first['revision'],2);expect(records.last['revision'],1);
+    expect((records.last['payload'] as Map)['data'],{'name':'B'});
+    expect(()=>projectCloudRecordChanges({'changes':[{'operation':'upsert'}],'has_more':false}),throwsFormatException);
+    expect(()=>projectCloudRecordChanges({'changes':[],'has_more':true}),throwsStateError);
+  });
+
 }
