@@ -645,7 +645,9 @@ test("checked-in migration exactly matches verified source files", async () => {
   const files = await readdir(
     new URL("../supabase/migrations", import.meta.url),
   );
-  const migration = files.find((x) => x.endsWith("_app_kernel.sql"));
+  const migration = files.find((x) =>
+    x.endsWith("_crispy_mobile_kernel_v1.sql"),
+  );
   assert.ok(migration);
   const sources = await Promise.all(
     ["schema.sql", "features.sql", "storage.sql"].map((x) =>
@@ -776,7 +778,7 @@ test("media and billing migration matches source", async () => {
   const { readdir } = await import("node:fs/promises");
   const name = (
     await readdir(new URL("../supabase/migrations", import.meta.url))
-  ).find((x) => x.endsWith("_media_billing.sql"));
+  ).find((x) => x.endsWith("_crispy_mobile_media_billing_v1.sql"));
   assert.ok(name);
   assert.equal(
     await readFile(

@@ -75,6 +75,18 @@ jobs:
       - name: App dependencies and analysis
         working-directory: mobile/apps/mobile
         run: flutter pub get && dart run flutter_launcher_icons && flutter analyze --no-fatal-infos
+      - name: Log public dependency lockfiles
+        if: always()
+        run: |
+          python3 - <<'PYLOCK'
+          from pathlib import Path
+          import json
+          mobile = Path('mobile')
+          for relative in ('apps/mobile/pubspec.lock', 'packages/baking_domain/pubspec.lock', 'packages/content_models/pubspec.lock'):
+              path = mobile / relative
+              if path.is_file():
+                  print('CC_LOCKFILE_JSON ' + json.dumps({'path': relative, 'content': path.read_text()}, separators=(',', ':')))
+          PYLOCK
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -92,6 +104,25 @@ jobs:
           name: flutter-screen-captures
           path: mobile/apps/mobile/build/screenshots/*.png
           if-no-files-found: ignore
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Generate missing native runners
+        run: bash mobile/scripts/bootstrap.sh
+      - name: Android dependencies and icons
+        working-directory: mobile/apps/mobile
+        run: flutter pub get && dart run flutter_launcher_icons
       - name: Android debug build
         working-directory: mobile/apps/mobile
         run: flutter build apk --debug --dart-define-from-file=../../config/development.json

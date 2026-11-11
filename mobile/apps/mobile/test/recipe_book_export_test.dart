@@ -41,4 +41,19 @@ void main(){
     final p=entry().preview(includeNotes:false,includeTimes:false,includePhotos:false);
     expect(p.containsKey('actualCompletions'),isFalse);expect(jsonEncode(p),isNot(contains('2026-11-11T08')));
   });
+  test('cumulative selected text is rejected before font or photo I/O without truncation',()async{
+    var fontReads=0,photoReads=0;
+    final exporter=RecipeBookExporter(fontLoader:(_)async{fontReads++;throw StateError('Not reached');},photoReader:(_)async{photoReads++;throw StateError('Not reached');});
+    final large=[for(var n=0;n<2;n++)RecipeBookEntry(id:'large-$n',title:'Large $n',recipeVersion:'1',ingredients:[{'name':'Flour','grams':500}],steps:[for(var i=0;i<50;i++){'id':'step-$i','title':'Method','instructions':'x'*1000}],actualSteps:[])];
+    await expectLater(exporter.build(large),throwsA(isA<FormatException>().having((e)=>e.message,'message',contains('80,000'))));
+    expect(fontReads,0);expect(photoReads,0);
+    expect(large.first.steps.first['instructions'],hasLength(1000));
+  });
+
+  test('newline-heavy selected content is rejected before layout and font I/O',()async{
+    var reads=0;final exporter=RecipeBookExporter(fontLoader:(_)async{reads++;throw StateError('Not reached');});
+    final e=RecipeBookEntry(id:'lines',title:'Line budget',recipeVersion:'1',ingredients:[{'name':'Flour','grams':500}],steps:[{'id':'a','instructions':'\n'*600},{'id':'b','instructions':'\n'*600}],actualSteps:[]);
+    await expectLater(exporter.build([e]),throwsFormatException);expect(reads,0);
+  });
+
 }

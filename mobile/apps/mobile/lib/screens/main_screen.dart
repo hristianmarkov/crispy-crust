@@ -559,7 +559,7 @@ class CollectionScreen extends StatelessWidget {
   Future<void> _add(BuildContext context, {AppRecord? original}) async {
     final f = await _form(context, original == null ? 'Add ${kind == 'discard' ? 'discard lot' : 'ingredient lot'}' : 'Update recorded stock', [
       _Field('name', 'Ingredient / lot name', initial: original?.text('name') ?? ''),
-      _Field('grams', 'Recorded amount (g)', initial: original?.text('grams', original?.text('quantity')??'') ?? '', numeric: true),
+      _Field('grams', 'Recorded amount (g)', initial: original?.text('grams', original.text('quantity')) ?? '', numeric: true),
       _Field('price', 'Pack price (optional)', initial: original?.text('price') ?? '', numeric: true, required: false),
       _Field('currency', 'Currency', initial: original?.text('currency') ?? '', required: false),
       _Field('note', 'Storage, date, flour or allergy notes', initial: original?.text('note') ?? '', multiline: true, required: false),

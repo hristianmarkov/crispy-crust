@@ -12,6 +12,7 @@ class FakeStore implements SubscriptionStoreGateway {
   String? boundUser;
   List<StoreOffering> products = [offer];
   Completer<void>? bindGate;
+  Completer<void>? purchaseGate;
   String? manage = 'https://apps.apple.com/account/subscriptions';
   @override Future<void> bind(String publicKey, String userId) async {
     bindings++;
@@ -23,6 +24,7 @@ class FakeStore implements SubscriptionStoreGateway {
   }
   @override Future<void> purchase(String expectedUserId, String offeringId) async {
     expect(boundUser, expectedUserId); expect(offeringId, offer.id); purchases++;
+    await purchaseGate?.future;
   }
   @override Future<void> restore(String expectedUserId) async { expect(boundUser, expectedUserId); restores++; }
   @override Future<String?> managementUrl(String expectedUserId) async { expect(boundUser, expectedUserId); return manage; }
@@ -71,6 +73,17 @@ void main() {
     expect(verifier.checkedUsers, ['user-a', 'user-a', 'user-a']);
     expect(service.verifiedStatus!.entitlements, isEmpty);
     expect(service.managementUri!.host, 'apps.apple.com'); service.dispose();
+  });
+  test('rapid duplicate purchase calls initiate only one store purchase', () async {
+    final store = FakeStore()..purchaseGate = Completer<void>();
+    final service = SubscriptionService(currentUserId: () => 'user-a', gateway: store,
+      verifier: FakeVerifier(), configuration: configured, platform: TargetPlatform.android);
+    await service.refresh();
+    final first = service.purchase(offer.id);
+    await service.purchase(offer.id);
+    await Future<void>.delayed(Duration.zero);
+    store.purchaseGate!.complete(); await first;
+    expect(store.purchases, 1); service.dispose();
   });
   test('client cannot purchase when server verification is unavailable', () async {
     final store = FakeStore(); final verifier = FakeVerifier()..unavailable = true;

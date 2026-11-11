@@ -19,4 +19,8 @@ for(const table of ['cc_kitchens','cc_profiles','crumb_clock_waitlist']) {
  const result=await request(new URL(`/rest/v1/${table}?select=*&limit=1`,origin),{apikey:config.SUPABASE_PUBLISHABLE_KEY});
  assert.ok([401,403].includes(result.status),`Anonymous Data API access to ${table} must be denied (got ${result.status})`);
 }
+for(const path of ['/functions/v1/job-worker','/functions/v1/job-worker/health']) {
+ const result=await fetch(new URL(path,origin),{method:'POST',redirect:'error',signal:AbortSignal.timeout(20000)});
+ assert.equal(result.status,401,'Worker job and health routes must reject missing server authorization');
+}
 console.log('Hosted app API and Data API reject missing/invalid auth and unapproved origins; legacy waitlist remains private.');

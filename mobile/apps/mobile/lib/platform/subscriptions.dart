@@ -263,6 +263,7 @@ class SubscriptionService extends ChangeNotifier {
   Uri? managementUri;
   String? accountId;
   bool _disposed = false;
+  bool _mutationQueued = false;
   int _generation = 0;
   Future<void> _queue = Future.value();
   bool get canPurchase => state == SubscriptionState.ready && verifiedStatus != null &&
@@ -294,8 +295,16 @@ class SubscriptionService extends ChangeNotifier {
     return Future.value();
   }
   Future<void> refresh() => _serialized(() => _perform());
-  Future<void> purchase(String offeringId) => _serialized(() => _perform(purchaseId: offeringId));
-  Future<void> restore() => _serialized(() => _perform(restore: true));
+  Future<void> purchase(String offeringId) {
+    if (_mutationQueued || state == SubscriptionState.loading) { return Future.value(); }
+    _mutationQueued = true;
+    return _serialized(() => _perform(purchaseId: offeringId)).whenComplete(() => _mutationQueued = false);
+  }
+  Future<void> restore() {
+    if (_mutationQueued || state == SubscriptionState.loading) { return Future.value(); }
+    _mutationQueued = true;
+    return _serialized(() => _perform(restore: true)).whenComplete(() => _mutationQueued = false);
+  }
 
   Future<void> _perform({String? purchaseId, bool restore = false}) async {
     if (_disposed) { return; }
