@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "light": {
+    "background": "#F8F7F0",
+    "surface": "#FFFFFB",
+    "surfaceRaised": "#EDEFE5",
+    "text": "#263024",
+    "textSecondary": "#5B6354",
+    "primary": "#465538",
+    "onPrimary": "#FFFFFB",
+    "outline": "#7A806F",
+    "divider": "#DDE0D3",
+    "secondaryText": "#8A4B23",
+    "accentDecorative": "#BF772E",
+    "success": "#355C3A",
+    "warning": "#805B00",
+    "error": "#A52F2F",
+    "info": "#335B77"
+  },
+  "dark": {
+    "background": "#121810",
+    "surface": "#1C241A",
+    "surfaceRaised": "#273124",
+    "text": "#F3F2E8",
+    "textSecondary": "#BFC7B4",
+    "primary": "#C3D2A6",
+    "onPrimary": "#1E2B15",
+    "outline": "#849076",
+    "divider": "#3D4836",
+    "secondaryText": "#E6AF79",
+    "accentDecorative": "#E6AF79",
+    "success": "#B7D7AF",
+    "warning": "#EBC26E",
+    "error": "#FFB4AB",
+    "info": "#ACCEE9"
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48
+  ],
+  "radii": {
+    "input": 12,
+    "card": 16,
+    "sheet": 24
+  },
+  "type": {
+    "display": {
+      "font": "DM Serif Display",
+      "size": 32,
+      "height": 40
+    },
+    "title": {
+      "font": "DM Sans",
+      "size": 24,
+      "weight": 600,
+      "height": 32
+    },
+    "section": {
+      "font": "DM Sans",
+      "size": 20,
+      "weight": 600,
+      "height": 28
+    },
+    "body": {
+      "font": "DM Sans",
+      "size": 16,
+      "weight": 400,
+      "height": 24
+    },
+    "label": {
+      "font": "DM Sans",
+      "size": 14,
+      "weight": 600,
+      "height": 20
+    },
+    "caption": {
+      "font": "DM Sans",
+      "size": 13,
+      "weight": 400,
+      "height": 18
+    },
+    "timer": {
+      "font": "DM Sans",
+      "size": 40,
+      "weight": 600,
+      "height": 48,
+      "feature": "tnum"
+    }
+  }
+}
