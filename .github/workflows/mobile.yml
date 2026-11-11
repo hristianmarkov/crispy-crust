@@ -1,0 +1,85 @@
+name: Mobile verification
+on:
+  pull_request:
+    paths: ['mobile/**', '.github/workflows/mobile.yml']
+  push:
+    branches: [main, feat/flutter-mobile-app]
+    paths: ['mobile/**', '.github/workflows/mobile.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Generate missing native runners
+        run: bash mobile/scripts/bootstrap.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-native-runners
+          path: |
+            mobile/apps/mobile/android
+            mobile/apps/mobile/ios
+            mobile/apps/mobile/linux
+            mobile/apps/mobile/.metadata
+      - name: Domain tests
+        working-directory: mobile/packages/baking_domain
+        run: dart pub get && dart test
+      - name: Content validation
+        working-directory: mobile/packages/content_models
+        run: dart pub get && dart test
+      - name: App dependencies and analysis
+        working-directory: mobile/apps/mobile
+        run: flutter pub get && flutter analyze --no-fatal-infos
+      - name: App and persistence tests
+        working-directory: mobile/apps/mobile
+        run: flutter test
+      - name: Android debug build
+        working-directory: mobile/apps/mobile
+        run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug
+          path: mobile/apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Generate missing native runners
+        run: bash mobile/scripts/bootstrap.sh
+      - name: Compile iOS without signing
+        working-directory: mobile/apps/mobile
+        run: flutter pub get && flutter build ios --debug --no-codesign
+      - name: Native companion model tests
+        working-directory: mobile/native/apple
+        run: swift test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned
+          path: mobile/apps/mobile/build/ios/iphoneos/Runner.app
+          if-no-files-found: error

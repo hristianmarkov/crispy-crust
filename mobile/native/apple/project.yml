@@ -1,0 +1,43 @@
+name: CrispyCompanions
+options:
+  bundleIdPrefix: app.crispycrust
+  deploymentTarget:
+    iOS: '16.2'
+    watchOS: '9.0'
+packages:
+  Core:
+    path: .
+settings:
+  SWIFT_VERSION: '5.0'
+  CODE_SIGNING_ALLOWED: NO
+targets:
+  CrispyWatch:
+    type: application
+    platform: watchOS
+    sources: [Watch]
+    dependencies:
+      - package: Core
+        product: CrispyCompanionCore
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleDisplayName: Crispy Crust
+        WKApplication: true
+        WKWatchOnly: true
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: app.crispycrust.watch
+      GENERATE_INFOPLIST_FILE: YES
+  CrispyWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [Widgets]
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Crispy Crust
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: app.crispycrust.widgets
+      GENERATE_INFOPLIST_FILE: YES
+      APPLICATION_EXTENSION_API_ONLY: YES

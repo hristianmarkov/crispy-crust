@@ -1,0 +1,668 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "contentVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "publishedOn": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "warning": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recipes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/recipe"
+      }
+    },
+    "lessons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lesson"
+      }
+    },
+    "guidance": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/guidance"
+      }
+    },
+    "courses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/course"
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "contentVersion",
+    "publishedOn",
+    "warning",
+    "recipes",
+    "lessons",
+    "guidance",
+    "courses"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://crispycrust.app/schemas/catalogue-v1.json",
+  "title": "Crispy Crust content catalogue v1",
+  "$defs": {
+    "ingredient": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grams": {
+          "type": "number",
+          "minimum": 0
+        },
+        "role": {
+          "enum": [
+            "flour",
+            "water",
+            "starter",
+            "salt",
+            "inclusion"
+          ]
+        },
+        "allergens": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "flourGrams": {
+          "type": "number",
+          "minimum": 0
+        },
+        "waterGrams": {
+          "type": "number",
+          "minimum": 0
+        },
+        "stage": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "grams",
+        "role",
+        "allergens",
+        "flourGrams",
+        "waterGrams",
+        "stage"
+      ],
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instructions": {
+          "type": "string",
+          "minLength": 1
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10080
+        },
+        "kind": {
+          "enum": [
+            "handsOn",
+            "wait",
+            "check"
+          ]
+        },
+        "readinessCue": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lessonId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "after": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "timingStatus": {
+          "enum": [
+            "draft_estimate",
+            "validated_range"
+          ]
+        },
+        "ingredientIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "durationMinutes",
+        "kind",
+        "readinessCue",
+        "lessonId",
+        "resources",
+        "after",
+        "timingStatus",
+        "ingredientIds"
+      ],
+      "additionalProperties": false
+    },
+    "recipe": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^R[0-9]{2,}$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family": {
+          "enum": [
+            "country",
+            "wholegrain",
+            "tin",
+            "rye",
+            "focaccia",
+            "pizza",
+            "bagels",
+            "enriched",
+            "discard"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "user_confirmed",
+            "reviewed",
+            "kitchen_tested",
+            "published",
+            "withdrawn"
+          ]
+        },
+        "experimental": {
+          "type": "boolean"
+        },
+        "kitchenValidated": {
+          "type": "boolean"
+        },
+        "requiresExplicitAcceptance": {
+          "type": "boolean"
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rights": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceUrls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "createdOn": {
+          "type": "string",
+          "format": "date"
+        },
+        "totalFlourGrams": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "totalWaterGrams": {
+          "type": "number",
+          "minimum": 0
+        },
+        "hydrationPercent": {
+          "type": "number",
+          "minimum": 0
+        },
+        "hydrationBasis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "doughMassGrams": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "yieldCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "yieldUnit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allergens": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "equipment": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ingredient"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "approvedBranches": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "validatedTemperatureRangeC": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "mediaIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "reviewer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "trialIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "missing": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "reviewer",
+            "trialIds",
+            "missing"
+          ],
+          "additionalProperties": false
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "guidanceIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "title",
+        "family",
+        "description",
+        "status",
+        "experimental",
+        "kitchenValidated",
+        "requiresExplicitAcceptance",
+        "author",
+        "rights",
+        "sourceUrls",
+        "createdOn",
+        "totalFlourGrams",
+        "totalWaterGrams",
+        "hydrationPercent",
+        "hydrationBasis",
+        "doughMassGrams",
+        "yieldCount",
+        "yieldUnit",
+        "allergens",
+        "equipment",
+        "ingredients",
+        "steps",
+        "approvedBranches",
+        "validatedTemperatureRangeC",
+        "mediaIds",
+        "validation",
+        "warnings",
+        "guidanceIds"
+      ],
+      "additionalProperties": false
+    },
+    "lesson": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "courseId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "editorial_draft",
+            "reviewed",
+            "published"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instructions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "exercise": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transcript": {
+          "type": "string",
+          "minLength": 1
+        },
+        "leftHandedAlternative": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "demonstration": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "not_produced",
+                "produced"
+              ]
+            },
+            "videoAssetId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "captionAssetId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "stillAssetIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "missing": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "status",
+            "videoAssetId",
+            "captionAssetId",
+            "stillAssetIds",
+            "missing"
+          ],
+          "additionalProperties": false
+        },
+        "sourceUrls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "review": {
+          "type": "object",
+          "properties": {
+            "reviewer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reviewedOn": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date"
+            }
+          },
+          "required": [
+            "reviewer",
+            "reviewedOn"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "courseId",
+        "status",
+        "summary",
+        "instructions",
+        "exercise",
+        "transcript",
+        "leftHandedAlternative",
+        "demonstration",
+        "sourceUrls",
+        "review"
+      ],
+      "additionalProperties": false
+    },
+    "guidance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://"
+              },
+              "checkedOn": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "required": [
+              "title",
+              "url",
+              "checkedOn"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "reviewer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "status",
+        "body",
+        "sources",
+        "reviewer"
+      ],
+      "additionalProperties": false
+    },
+    "course": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lessonIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "lessonIds"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

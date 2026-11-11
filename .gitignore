@@ -7,3 +7,19 @@ out/
 *.tsbuildinfo
 test-results/
 playwright-report/
+
+# Mobile native outputs and local configuration
+.dart_tool/
+.packages
+.flutter-plugins*
+**/build/
+**/Pods/
+**/.symlinks/
+**/.gradle/
+**/local.properties
+**/ephemeral/
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+mobile/**/secrets.*
