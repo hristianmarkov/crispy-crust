@@ -58,9 +58,20 @@ if android.exists():
         ET.SubElement(intent, 'action', {f'{{{ns}}}name': 'android.intent.action.TTS_SERVICE'})
     ET.indent(tree, space='    ')
     tree.write(manifest, encoding='unicode', xml_declaration=True)
-    kotlin = android / 'app/src/main/kotlin/app/crispycrust/crispy_crust/MainActivity.kt'
+    if not any(x.get(f'{{{ns}}}name') == '.KitchenWidget' for x in application.findall('receiver')):
+        receiver = ET.SubElement(application, 'receiver', {f'{{{ns}}}name': '.KitchenWidget', f'{{{ns}}}exported': 'false'})
+        intent = ET.SubElement(receiver, 'intent-filter')
+        ET.SubElement(intent, 'action', {f'{{{ns}}}name': 'android.appwidget.action.APPWIDGET_UPDATE'})
+        ET.SubElement(receiver, 'meta-data', {f'{{{ns}}}name': 'android.appwidget.provider', f'{{{ns}}}resource': '@xml/kitchen_widget_info'})
+        ET.indent(tree, space='    ')
+        tree.write(manifest, encoding='unicode', xml_declaration=True)
+    kotlin = android / 'app/src/main/kotlin/app/crispycrust/crispy_crust/MainActivity.kt' 
     kotlin.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(templates / 'MainActivity.kt', kotlin)
+    shutil.copyfile(templates / 'KitchenWidget.kt', kotlin.with_name('KitchenWidget.kt'))
+    xml = android / 'app/src/main/res/xml'
+    xml.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(templates / 'kitchen_widget_info.xml', xml / 'kitchen_widget_info.xml')
     drawable = android / 'app/src/main/res/drawable'
     drawable.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(templates / 'ic_notification.xml', drawable / 'ic_notification.xml')

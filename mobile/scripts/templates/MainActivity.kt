@@ -1,6 +1,9 @@
 package app.crispycrust.crispy_crust
 
 import android.Manifest
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import org.json.JSONObject
 import android.content.pm.PackageManager
 import android.content.ContentUris
 import android.provider.CalendarContract
@@ -23,6 +26,16 @@ class MainActivity : FlutterActivity() {
                         if (call.argument<Boolean>("enabled") == true) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         result.success(null)
+                    }
+                    "publishCompanion" -> {
+                        val snapshot = call.argument<Map<String, Any>>("snapshot")
+                        if (snapshot == null || snapshot["schemaVersion"] != 1) result.error("INVALID_SNAPSHOT", "Invalid companion task", null)
+                        else {
+                            getSharedPreferences("crispy_companion", MODE_PRIVATE).edit().putString("snapshot", JSONObject(snapshot).toString()).apply()
+                            val manager = AppWidgetManager.getInstance(this)
+                            KitchenWidget().onUpdate(this, manager, manager.getAppWidgetIds(ComponentName(this, KitchenWidget::class.java)))
+                            result.success(mapOf("widget" to true, "watch" to false))
+                        }
                     }
                     "readBusy" -> {
                         val start = call.argument<Number>("start")?.toLong()

@@ -63,7 +63,7 @@ class ReminderCoordinator {
 
   Future<ReminderReconciliation> reconcile(List<ReminderIntent> intents,
       {required DateTime now}) async {
-    if (maximumPending < 1) throw ArgumentError.value(maximumPending);
+    if (maximumPending < 1) { throw ArgumentError.value(maximumPending); }
     final byId = <String, ReminderIntent>{};
     for (final intent in intents) {
       final previous = byId[intent.id];

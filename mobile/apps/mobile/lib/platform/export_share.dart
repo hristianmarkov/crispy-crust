@@ -11,8 +11,8 @@ class ExportShareService {
     if (!RegExp(r'^[a-zA-Z0-9_.-]{1,120}$').hasMatch(fileName) || fileName == '.' || fileName == '..') {
       throw ArgumentError('File name must be a plain basename');
     }
-    if (kIsWeb) return const CapabilityResult(CapabilityStatus.unsupported,
-      'The consumer app does not provide a web export flow.');
+    if (kIsWeb) { return const CapabilityResult(CapabilityStatus.unsupported,
+      'The consumer app does not provide a web export flow.'); }
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/$fileName');
     await file.writeAsString(content, encoding: utf8, flush: true);

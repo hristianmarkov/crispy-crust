@@ -36,6 +36,16 @@ void main(){
   test('scale round trip and displayed mass conservation',(){final engine=const FormulaEngine();final f=FormulaDefinition.fromNumbers(totalFlour:333,hydration:.73);final result=engine.calculate(f,targetDoughWeight:r(1000));expect(result.totalDough,r(1000));final rounded=result.roundForScale(incrementGrams:.1);expect(rounded.ingredients.values.fold(Rational.zero,(a,b)=>a+b),rounded.totalDough);expect(engine.calculate(f.scale(r(3)).scale(Rational.parse('1/3'))).totalDough,engine.calculate(f).totalDough);});
   test('JSON rational quantities round trip',(){final f=FormulaDefinition.fromNumbers(totalFlour:333.3,hydration:.7,inclusions:{'seeds':20});final copy=FormulaDefinition.fromJson(jsonDecode(jsonEncode(f.toJson())));expect(const FormulaEngine().calculate(copy).totalDough,const FormulaEngine().calculate(f).totalDough);});
   test('feed includes recipe use and retained mother',(){final build=const FormulaEngine().buildStarter(FeedBuildRequest(requiredMass:r(200),retainMass:r(20),availableSeed:r(50)));expect(build.seed,r(44));expect(build.flour,r(88));expect(build.water,r(88));expect(build.total,r(220));expect(build.hydration,r(1));expect(()=>const FormulaEngine().buildStarter(FeedBuildRequest(requiredMass:r(200),retainMass:r(20),availableSeed:r(20))),throwsA(code('FEED_INSUFFICIENT_SEED')));});
+  test('physical ingredient catalogue totals count levain composition once',(){
+   final f=PhysicalFormula([
+    PhysicalIngredient(id:'flour',grams:r(450),flourGrams:r(450)),
+    PhysicalIngredient(id:'water',grams:r(300),waterGrams:r(300)),
+    PhysicalIngredient(id:'starter',grams:r(100),flourGrams:r(50),waterGrams:r(50)),
+    PhysicalIngredient(id:'salt',grams:r(10)),
+   ]);
+   expect(f.totalDough,r(860));expect(f.totalFlour,r(500));expect(f.hydration,r(.7));expect(f.toDoughWeight(r(1000)).totalDough,r(1000));expect(f.scale(r(2)).hydration,r(.7));
+   expect(()=>PhysicalIngredient(id:'bad',grams:r(100),flourGrams:r(150)),throwsA(code('FORMULA_INVALID_COMPOSITION')));
+  });
   test('density requires provenance and temperature conversion is reversible',(){expect(()=>IngredientDensity(r(.5),source:'',uncertainty:'approximate'),throwsArgumentError);final density=IngredientDensity(r(.5),source:'measured pack',uncertainty:'packing varies');expect(density.gramsFor(r(100)),r(50));expect(fahrenheitToCelsius(celsiusToFahrenheit(r(23))),r(23));});
  });
  group('Schedule constraints',(){

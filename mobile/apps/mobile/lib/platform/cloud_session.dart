@@ -44,7 +44,7 @@ class CloudConfiguration {
   bool get isConfigured {
     final uri = Uri.tryParse(url);
     return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty &&
-      uri.userInfo.isEmpty && publishableKey.isNotEmpty;
+      uri.userInfo.isEmpty && publishableKey.isNotEmpty && !publishableKey.startsWith('sb_secret_');
   }
 }
 
@@ -57,10 +57,10 @@ class CloudSessionService {
 
   /// Call only when the user chooses cloud services. Library sync stays off.
   Future<CapabilityResult<bool>> connect(CloudConfiguration configuration) async {
-    if (!configuration.isConfigured) return const CapabilityResult(
+    if (!configuration.isConfigured) { return const CapabilityResult(
       CapabilityStatus.unconfigured,
-      'Cloud services need an app backend configuration. Local baking remains available.');
-    if (_client != null) return const CapabilityResult.available(true);
+      'Cloud services need an app backend configuration. Local baking remains available.'); }
+    if (_client != null) { return const CapabilityResult.available(true); }
     final namespace = Uri.parse(configuration.url).host;
     final instance = await Supabase.initialize(url: configuration.url,
       publishableKey: configuration.publishableKey, debug: false,

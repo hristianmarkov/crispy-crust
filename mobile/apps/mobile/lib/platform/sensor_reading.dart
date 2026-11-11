@@ -19,13 +19,13 @@ TemperatureReading decodeEnvironmentalTemperature(List<int> bytes, {
   required String deviceId, required SensorRole role, required DateTime receivedAt,
   double calibrationOffset = 0,
 }) {
-  if (bytes.length != 2) throw const FormatException('Temperature requires two bytes');
+  if (bytes.length != 2) { throw const FormatException('Temperature requires two bytes'); }
   if (!calibrationOffset.isFinite || calibrationOffset.abs() > 10) {
     throw ArgumentError('Calibration offset outside reviewed bounds');
   }
   final value = ByteData.sublistView(Uint8List.fromList(bytes)).getInt16(0, Endian.little);
   final celsius = value / 100 + calibrationOffset;
-  if (celsius < -100 || celsius > 200) throw const FormatException('Sensor reading outside supported range');
+  if (celsius < -100 || celsius > 200) { throw const FormatException('Sensor reading outside supported range'); }
   return TemperatureReading(deviceId: deviceId, role: role,
     celsius: celsius, observedAt: receivedAt.toUtc());
 }

@@ -71,7 +71,17 @@ final class FormulaResult {
     final correction = rows['water']! + residual >= Rational.zero ? 'water' : 'flour';
     if (rows[correction]!+residual < Rational.zero) throw const DomainException('ROUNDING_UNSUPPORTED', 'Use a more precise scale increment.');
     rows[correction] = rows[correction]!+residual;
-    return WeighOut(Map.unmodifiable(rows), target, residual, correction);
+    var roundedFlour=rows['flour']!,roundedWater=rows['water']!;
+    if(definition.preferments.isEmpty){
+      final f=rows['starter']!/(Rational.one+definition.starterHydration);
+      roundedFlour+=f;roundedWater+=rows['starter']!-f;
+    }else{
+      for(final p in definition.preferments){final mass=rows['preferment:${p.id}']!;final f=mass/(Rational.one+p.hydration);roundedFlour+=f;roundedWater+=mass-f;}
+    }
+    // A combined inclusion-water assumption cannot be redistributed across
+    // independently rounded eggs/milk/etc without per-ingredient composition.
+    final roundedHydration=definition.inclusionWater==Rational.zero&&roundedFlour>Rational.zero?roundedWater/roundedFlour:null;
+    return WeighOut(Map.unmodifiable(rows), target, residual, correction,roundedHydration);
   }
   Map<String, dynamic> toJson() => {'definition': definition.toJson(), 'ingredients': ingredients.map((k,v)=>MapEntry(k,v.toJson())),
     'totalDough': totalDough.toJson(), 'starterFlour': starterFlour.toJson(), 'starterWater': starterWater.toJson()};
@@ -80,7 +90,9 @@ final class WeighOut {
   final Map<String,Rational> ingredients;
   final Rational totalDough, roundingResidual;
   final String residualIngredient;
-  const WeighOut(this.ingredients,this.totalDough,this.roundingResidual,this.residualIngredient);
+  /// Null when inclusion water composition is not sufficiently specified.
+  final Rational? roundedHydration;
+  const WeighOut(this.ingredients,this.totalDough,this.roundingResidual,this.residualIngredient,this.roundedHydration);
 }
 
 final class FormulaEngine {
@@ -162,3 +174,29 @@ final class IngredientDensity {
 }
 Rational celsiusToFahrenheit(Rational c) => c*Rational.fromNum(9)/Rational.fromNum(5)+Rational.fromNum(32);
 Rational fahrenheitToCelsius(Rational f) => (f-Rational.fromNum(32))*Rational.fromNum(5)/Rational.fromNum(9);
+
+/// Generic physical rows support authored/imported formulas without reverse-
+/// engineering every loaf into one starter basis. Counted component masses are
+/// explicit, so milk/egg water is included only when the recipe defines it.
+final class PhysicalIngredient {
+ final String id;
+ final Rational grams,flourGrams,waterGrams;
+ PhysicalIngredient({required this.id,required this.grams,Rational? flourGrams,Rational? waterGrams}):flourGrams=flourGrams??Rational.zero,waterGrams=waterGrams??Rational.zero {
+  if(id.isEmpty||grams.isNegative||this.flourGrams.isNegative||this.waterGrams.isNegative||this.flourGrams+this.waterGrams>grams)throw const DomainException('FORMULA_INVALID_COMPOSITION','Ingredient flour/water components cannot exceed its physical mass.');
+ }
+ PhysicalIngredient scale(Rational factor)=>PhysicalIngredient(id:id,grams:grams*factor,flourGrams:flourGrams*factor,waterGrams:waterGrams*factor);
+ Map<String,dynamic> toJson()=>{'id':id,'grams':grams.toJson(),'flourGrams':flourGrams.toJson(),'waterGrams':waterGrams.toJson()};
+}
+final class PhysicalFormula {
+ final List<PhysicalIngredient> ingredients;
+ PhysicalFormula(List<PhysicalIngredient> ingredients):ingredients=List.unmodifiable(ingredients) {
+  if(ingredients.isEmpty||ingredients.map((i)=>i.id).toSet().length!=ingredients.length)throw const DomainException('FORMULA_INVALID_COMPOSITION','Formula needs unique physical ingredient rows.');
+ }
+ Rational get totalDough=>ingredients.fold(Rational.zero,(a,i)=>a+i.grams);
+ Rational get totalFlour=>ingredients.fold(Rational.zero,(a,i)=>a+i.flourGrams);
+ Rational get totalWater=>ingredients.fold(Rational.zero,(a,i)=>a+i.waterGrams);
+ Rational? get hydration=>totalFlour==Rational.zero?null:totalWater/totalFlour;
+ PhysicalFormula scale(Rational factor){if(factor<=Rational.zero)throw ArgumentError('Scale must be positive');return PhysicalFormula(ingredients.map((i)=>i.scale(factor)).toList());}
+ PhysicalFormula toDoughWeight(Rational target){if(target<=Rational.zero||totalDough<=Rational.zero)throw ArgumentError('Target and original dough weights must be positive');return scale(target/totalDough);}
+ Map<String,dynamic> toJson()=>{'ingredients':ingredients.map((i)=>i.toJson()).toList(),'totalDough':totalDough.toJson(),'totalFlour':totalFlour.toJson(),'totalWater':totalWater.toJson(),'hydration':hydration?.toJson()};
+}

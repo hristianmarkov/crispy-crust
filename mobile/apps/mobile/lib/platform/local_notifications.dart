@@ -14,8 +14,8 @@ class LocalNotificationGateway implements ReminderGateway {
       defaultTargetPlatform == TargetPlatform.iOS);
 
   Future<CapabilityResult<bool>> initialize({void Function(String?)? onOpen}) async {
-    if (!supported) return const CapabilityResult(CapabilityStatus.unsupported,
-      'Native reminders are available on iOS and Android. In-app deadlines remain visible.');
+    if (!supported) { return const CapabilityResult(CapabilityStatus.unsupported,
+      'Native reminders are available on iOS and Android. In-app deadlines remain visible.'); }
     tz_data.initializeTimeZones();
     await plugin.initialize(settings: const InitializationSettings(
       android: AndroidInitializationSettings('@drawable/ic_notification'),
@@ -28,8 +28,8 @@ class LocalNotificationGateway implements ReminderGateway {
 
   /// Request only after the user opts into a useful reminder.
   Future<CapabilityResult<bool>> requestPermission() async {
-    if (!_initialized) await initialize();
-    if (!supported) return const CapabilityResult(CapabilityStatus.unsupported, 'Native reminders unavailable.');
+    if (!_initialized) { await initialize(); }
+    if (!supported) { return const CapabilityResult(CapabilityStatus.unsupported, 'Native reminders unavailable.'); }
     final bool? allowed;
     if (defaultTargetPlatform == TargetPlatform.android) {
       allowed = await plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -45,21 +45,21 @@ class LocalNotificationGateway implements ReminderGateway {
 
   @override
   Future<List<PendingReminder>> pending() async {
-    if (!supported) return [];
-    if (!_initialized) await initialize();
+    if (!supported) { return []; }
+    if (!_initialized) { await initialize(); }
     return (await plugin.pendingNotificationRequests())
       .map((p) => PendingReminder(p.id, p.payload)).toList();
   }
 
   @override
   Future<void> cancel(int id) async {
-    if (supported) await plugin.cancel(id: id);
+    if (supported) { await plugin.cancel(id: id); }
   }
 
   @override
   Future<void> schedule(ReminderIntent reminder) async {
-    if (!supported) return;
-    if (!_initialized) await initialize();
+    if (!supported) { return; }
+    if (!_initialized) { await initialize(); }
     final android = plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     final exactAllowed = await android?.canScheduleExactNotifications() ?? false;
     await plugin.zonedSchedule(id: reminder.notificationId, title: reminder.title,

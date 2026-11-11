@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class BusyBlock {
   const BusyBlock({required this.start, required this.end});
   final DateTime start;
@@ -23,12 +25,26 @@ String exportCalendar(List<CalendarTask> tasks, {required DateTime generatedAt})
   final lines = <String>['BEGIN:VCALENDAR', 'VERSION:2.0',
     'PRODID:-//Crispy Crust//Bake plan//EN', 'CALSCALE:GREGORIAN'];
   for (final task in tasks) {
-    if (!task.end.isAfter(task.start)) throw ArgumentError('Calendar task must have positive duration');
+    if (!task.end.isAfter(task.start)) { throw ArgumentError('Calendar task must have positive duration'); }
     lines.addAll(['BEGIN:VEVENT', 'UID:${escape(task.id)}@crispycrust.app',
       'DTSTAMP:${date(generatedAt)}', 'DTSTART:${date(task.start)}',
       'DTEND:${date(task.end)}', 'SEQUENCE:${task.revision}',
       'SUMMARY:${escape(task.title)}', 'END:VEVENT']);
   }
   lines.add('END:VCALENDAR');
-  return '${lines.join('\r\n')}\r\n';
+  final folded = <String>[];
+  for (final line in lines) {
+    var current = '';
+    var bytes = 0;
+    for (final rune in line.runes) {
+      final character = String.fromCharCode(rune);
+      final length = utf8.encode(character).length;
+      if (bytes + length > 75) {
+        folded.add(current); current = ' '; bytes = 1;
+      }
+      current += character; bytes += length;
+    }
+    folded.add(current);
+  }
+  return '${folded.join('\r\n')}\r\n';
 }
