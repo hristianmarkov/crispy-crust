@@ -1,12 +1,12 @@
 # Worker deployment and read-only health verification
 
-The coordinator applied the Vault/dispatcher migration as `20261111155139_crispy_mobile_worker_vault_dispatch_v1` and deployed worker version 1. The named processing cron job remains **inactive**. The coordinator subsequently applied read-only health migration `20261111155946_crispy_mobile_worker_readonly_health_v1` and deployed worker version 2. The coordinator verified the dedicated health request: pg_net request ID 1 returned HTTP 200 with `{ok:true,mode:"heartbeat"}` and no timeout. This verifies transport/health authorisation only, not hosted user-job processing.
+The coordinator applied the Vault/dispatcher migration as `20261111155139_crispy_mobile_worker_vault_dispatch_v1` and deployed worker version 1. The named processing cron job is now **active** following explicit owner approval. The coordinator subsequently applied read-only health migration `20261111155946_crispy_mobile_worker_readonly_health_v1` and deployed worker version 2. The coordinator verified the dedicated health request: pg_net request ID 1 returned HTTP 200 with `{ok:true,mode:"heartbeat"}` and no timeout. This verifies transport/health authorisation only, not hosted user-job processing.
 
 ## Approval boundary
 
 Automatic approval review rejected invoking the forced dispatcher because it could claim/process destructive queued jobs; empty job/profile checks did not remove the race in which a job could appear concurrently. **Do not retry the forced dispatcher or use it as a heartbeat workaround.** The safer alternative requested by review is a dedicated health endpoint that never enters job processing.
 
-Activation of the processing cron is a separate operation and must remain inactive until the owner/coordinator has the required explicit approval. Successful health verification does not authorise processing account-deletion or other queued jobs.
+The owner explicitly approved **“Activate protected job processing”**. The coordinator activated only `crispy-crust-mobile-job-worker-v1` via `cron.alter_job` and verified `active=true`, schedule `* * * * *`. Its latest observed cron run succeeded, starting `2026-11-11 16:14:00.137931+00`, with `cc_jobs=0`. This verifies the empty-queue scheduler path, not actual user-job, export or account-deletion completion. Successful health verification alone did not authorise processing; the later explicit owner approval authorised activation. The historical forced-dispatch rejection was not bypassed and no manual forced-dispatch retry was used.
 
 ## Secret and capability protocol
 
@@ -45,11 +45,11 @@ That branch never calls `processJobs`, `runJobs`, `cc_worker_claim`, deletion, e
    Inspect only the corresponding `net._http_response` status/content. Never select/log outgoing headers or Vault values. Expected HTTP result: 200 and exactly the heartbeat object above, regardless of queued jobs. Check administrative nonce-use booleans/counts and unchanged job status/count metadata as appropriate; never invoke a job-claim function to verify health.
 6. Record hosted service-role/JWT-role behaviour and endpoint response. Local stubs alone cannot establish hosted gateway transport; the coordinator subsequently observed the successful read-only health response described above. Do not activate processing as part of this check.
 
-## Processing activation remains separate
+## Processing activation and current status
 
-The existing named job is `crispy-crust-mobile-job-worker-v1`. Do not activate it until explicit processing approval is available. If approval review still blocks that operation, report the block and obtain the required owner decision; do not substitute another scheduler, invocation path or query to bypass it.
+The named job `crispy-crust-mobile-job-worker-v1` was activated after the explicit owner approval recorded above. Only that job was changed; unrelated schedules were preserved. Do not use another scheduler, invocation path or query to bypass a future approval block.
 
-After approval, the coordinator can review the named job's activation and real fixture-processing acceptance separately. No other jobs should be altered. Its default worker processes export/deletion only; enabling AI/image/import remains explicit server configuration. Each invocation claims one job; actual queue throughput requires measurement.
+The successful observed run had an empty queue, so real fixture-processing acceptance remains separate. No other jobs should be altered. The default worker is enabled for export/deletion only; enabling AI/image/import remains explicit server configuration. A nonempty invocation claims one job; actual queue throughput and completed user-job behaviour still require measurement.
 
 ## Operations
 

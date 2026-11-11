@@ -25,6 +25,9 @@ void main(){
     final prepare=find.widgetWithText(FilledButton,'Prepare selected PDF locally');
     await tester.scrollUntilVisible(prepare,200,scrollable:scroll);await tester.tap(prepare);await tester.pumpAndSettle();
     expect(exporter.builds,1);expect(exporter.notes,isFalse);expect(exporter.photos,isFalse);
-    expect(find.textContaining('Prepared locally: 1 pages'),findsOneWidget);
+    final preparedStatus=find.textContaining('Prepared locally: 1 pages');
+    await tester.scrollUntilVisible(preparedStatus,-250,scrollable:scroll);
+    await tester.pumpAndSettle();
+    expect(preparedStatus,findsOneWidget);
   },timeout:const Timeout(Duration(seconds:60)));
 }

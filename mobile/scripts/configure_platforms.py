@@ -84,6 +84,7 @@ if android.exists():
     gradle = android / 'app/build.gradle.kts'
     if gradle.exists():
         text = gradle.read_text()
+        text = re.sub(r'compileSdk\s*=\s*(?:flutter\.compileSdkVersion|\d+)', 'compileSdk = 37', text)
         text = re.sub(r'namespace\s*=\s*"[^"]+"', 'namespace = "app.crispycrust.crispy_crust"', text)
         text = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "app.crispycrust.mobile"', text)
         if 'isCoreLibraryDesugaringEnabled' not in text:

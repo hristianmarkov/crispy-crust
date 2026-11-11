@@ -18,7 +18,9 @@ void main(){
     expect(find.text('Saved checks and timers'),findsOneWidget);
     expect(find.text('Check cooling loaf'),findsOneWidget);
     expect(find.textContaining('Check due'),findsOneWidget);
-    await tester.ensureVisible(find.text('Acknowledge timer'));
+    await Scrollable.ensureVisible(tester.element(find.text('Acknowledge timer')),alignment:.5);
+    await tester.pumpAndSettle();
+    expect(find.text('Acknowledge timer').hitTestable(),findsOneWidget);
     await tester.tap(find.text('Acknowledge timer'));
     await tester.pumpAndSettle();
     expect(store.find('cooling-check')!.text('state'),'acknowledged');

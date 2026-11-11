@@ -37,7 +37,7 @@ class LocalNotificationGateway implements ReminderGateway {
   Future<void> _initializeNative() async {
     tz_data.initializeTimeZones();
     await plugin.initialize(settings: const InitializationSettings(
-      android: AndroidInitializationSettings('@drawable/ic_notification'),
+      android: AndroidInitializationSettings('ic_notification'),
       iOS: DarwinInitializationSettings(requestAlertPermission: false,
         requestBadgePermission: false, requestSoundPermission: false)),
       onDidReceiveNotificationResponse: (response) {

@@ -63,7 +63,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(store.records('feed'), hasLength(1));
     expect(store.records('starter').single.number('mass'), 100);
-    expect(find.text('Actual feed history'), findsOneWidget);
+    final history=find.text('Actual feed history');
+    await tester.scrollUntilVisible(history,250,scrollable:find.descendant(of:find.byType(StarterDetail),matching:find.byType(Scrollable)).first);
+    await tester.pumpAndSettle();
+    expect(history, findsOneWidget);
     expect(tester.takeException(), isNull);
   }, timeout: const Timeout(Duration(seconds:60)));
 

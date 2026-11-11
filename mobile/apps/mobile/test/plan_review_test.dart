@@ -20,7 +20,7 @@ void main(){
   },child:const Text('Open proposed schedule'))))));
   await tester.tap(find.text('Open proposed schedule'));await tester.pumpAndSettle();
  }
- Future<void> reveal(WidgetTester tester,String text)async{await tester.scrollUntilVisible(find.text(text),250,scrollable:find.byType(Scrollable).first);await tester.ensureVisible(find.text(text));}
+ Future<void> reveal(WidgetTester tester,String text)async{await tester.scrollUntilVisible(find.text(text),250,scrollable:find.byType(Scrollable).first);await Scrollable.ensureVisible(tester.element(find.text(text)),alignment:.5);await tester.pumpAndSettle();expect(find.text(text).hitTestable(),findsOneWidget);}
  testWidgets('review and cancellation create no accepted schedule', (tester)async{
   final accepted=<Map<String,dynamic>>[];await mount(tester,candidate(),accepted);
   expect(accepted,isEmpty);expect(find.textContaining('No actions have been recorded'),findsOneWidget);

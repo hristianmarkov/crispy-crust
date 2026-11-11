@@ -38,8 +38,9 @@ void main(){
     expect(await sync.listConflicts(),isEmpty);
     expect((await db.customSelect('SELECT state FROM outbox').getSingle()).read<String>('state'),'discarded_resolution');
     final events=await db.customSelect('SELECT kind,payload FROM events ORDER BY recorded_at').get();expect(events,hasLength(2));expect(events.any((r)=>r.read<String>('kind')=='SyncConflictResolved'),isTrue);expect(events.any((r)=>r.read<String>('payload').contains('Local version')),isTrue);
-    final store=LocalAppStore(db,{'recipes':[],'lessons':[],'guidance':[]});await store.load();await store.save('conflict_copy',{'name':'Still private'},id:resolved.privateCopyId);store.dispose();
+    final store=LocalAppStore(db,{'recipes':[],'lessons':[],'guidance':[]});await store.load();await store.save('conflict_copy',{'name':'Still private'},id:resolved.privateCopyId);
     final report=await sync.syncOnce();expect(report.skipped,1);expect(pushes,1); // No private archive upload.
+    store.dispose(); // The borrowed database is closed only after the final sync assertion.
   });
   test('a server edit after preview rejects stale review without overwriting or clearing pending evidence',()async{
     await prepare();final review=await sync.reviewConflict(record);revision=4;

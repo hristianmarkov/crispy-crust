@@ -62,3 +62,5 @@ Source work also remains: supported in-progress replanning/recovery, timezone/DS
 Other external gates include Apple/Google organisation accounts/signing, OAuth/email setup, privacy/support contact and markets, production model/provider configuration and spend approval, final commercial products, physical iOS/Android/watch/probe checks, recipe trials/media rights, and moderation/support ownership. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md). Unconfigured providers must fail visibly; no fake successful purchase, upload or analysis is acceptable.
 
 Subscription source uses `REVENUECAT_IOS_PUBLIC_SDK_KEY` and `REVENUECAT_ANDROID_PUBLIC_SDK_KEY` only for the platform's public SDK key. Server RevenueCat credentials remain server-side. The screen obtains actual configured offerings/store prices and requests authenticated server verification; missing configuration never invents products, prices or entitlements. Store sandbox tests and commercial approval are still required.
+
+The current owner-only setup tasks and exact configuration names are recorded in [OWNER_SETUP.md](OWNER_SETUP.md).
