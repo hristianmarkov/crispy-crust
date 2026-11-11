@@ -11,11 +11,28 @@ class KitchenPlatform {
   final MethodChannel channel;
   final FlutterTts speech;
 
-  Future<CapabilityResult<bool>> publishCompanion(CompanionTaskSnapshot snapshot) async {
+  void listenForCompanionActions(Future<bool> Function(CompanionAction action) accept) {
+    channel.setMethodCallHandler((call) async {
+      if (call.method != 'companionAction') { throw MissingPluginException(); }
+      try {
+        final action = CompanionAction.fromJson(Map<String, dynamic>.from(call.arguments as Map));
+        return {'accepted': await accept(action)};
+      } on FormatException { return {'accepted': false}; }
+      on TypeError { return {'accepted': false}; }
+    });
+  }
+
+  Future<void> clearCompanion() async {
+    try { await channel.invokeMethod<void>('clearCompanion'); }
+    on MissingPluginException { /* No native surfaces exist on this platform. */ }
+    on PlatformException { /* Clear may retry on resume; local bake state is authoritative. */ }
+  }
+
+  Future<CapabilityResult<bool>> publishCompanion(CompanionTaskSnapshot snapshot, {bool enableLiveActivity = false}) async {
     try {
-      final result = await channel.invokeMapMethod<String, dynamic>('publishCompanion', {'snapshot': snapshot.toJson()});
-      if (result?['widget'] == true) { return const CapabilityResult.available(true,
-        'Task snapshot sent to installed widget. Watch transport is not yet connected.'); }
+      final result = await channel.invokeMapMethod<String, dynamic>('publishCompanion', {'snapshot': snapshot.toJson(), 'enableLiveActivity': enableLiveActivity});
+      if (result?['widget'] == true || result?['watchTransport'] == true) { return const CapabilityResult.available(true,
+        'Task snapshot sent to native surfaces. Watch receipt is not confirmed; check the watch for freshness.'); }
       return const CapabilityResult(CapabilityStatus.unsupported, 'Native companion transport unavailable.');
     } on MissingPluginException {
       return const CapabilityResult(CapabilityStatus.unsupported, 'Native companion transport unavailable.');

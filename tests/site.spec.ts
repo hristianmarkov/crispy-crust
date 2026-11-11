@@ -43,52 +43,18 @@ test("home has server-rendered product information and structured answers", asyn
   expect(errors).toEqual([]);
 });
 
-test("signup persists once, provides a confirmation and can be removed", async ({
-  page,
-  request,
-}) => {
-  const email = `browser-${Date.now()}@example.com`;
+test("marketing CTAs disclose development status and do not collect signups", async ({ page, request }) => {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "Join the early birds" })
-    .first()
-    .click();
-  const dialog = page.getByRole("dialog", {
-    name: "First in line. Fresh from the oven.",
-  });
-  await expect(dialog).toBeVisible();
-  await page.getByLabel("Your email address").fill(email);
-  await page.getByLabel("What’s in your pocket?").selectOption("android");
-  await page.getByRole("button", { name: "Save me a little spot" }).click();
-  await expect(
-    page.getByRole("heading", { name: "You’re on the list." }),
-  ).toBeVisible();
-  const duplicate = await request.post("/api/waitlist", {
-    data: { email, platform: "android" },
-  });
-  expect(duplicate.ok()).toBeTruthy();
-  await page.getByRole("button", { name: "Back to the good stuff" }).click();
-  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await page.locator(".hero-actions").getByRole("link", { name: "App in development" }).click();
+  await expect(page.locator("#app-status")).toBeInViewport();
+  await expect(page.locator("#app-status")).toContainText("Not publicly released yet");
+  await expect(page.locator("form")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator('a[href*="apps.apple.com"], a[href*="play.google.com"]')).toHaveCount(0);
+  expect((await request.post("/api/waitlist", { data: { email: "not-collected@example.com" } })).status()).toBe(404);
   await page.goto("/privacy");
-  await page.getByLabel("Email address to remove").fill(email);
-  await page.getByRole("button", { name: "Remove my email" }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "its record has been removed",
-  );
-});
-
-test("invalid signup and cross-origin writes are rejected", async ({
-  request,
-}) => {
-  const invalid = await request.post("/api/waitlist", {
-    data: { email: "not-an-email", platform: "ios" },
-  });
-  expect(invalid.status()).toBe(400);
-  const foreign = await request.post("/api/waitlist", {
-    headers: { Origin: "https://unrelated.example" },
-    data: { email: "test@example.com", platform: "ios" },
-  });
-  expect(foreign.status()).toBe(403);
+  await expect(page.locator("main")).toContainText("does not itself delete previously collected records");
+  await expect(page.locator("form")).toHaveCount(0);
 });
 
 test("guides, sitemap, robots and social image are available", async ({
@@ -122,7 +88,7 @@ test("guides, sitemap, robots and social image are available", async ({
   ).toBeVisible();
 });
 
-test("mobile navigation, modal and layouts work without horizontal overflow", async ({
+test("mobile navigation and layouts work without horizontal overflow", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -147,17 +113,10 @@ test("mobile navigation, modal and layouts work without horizontal overflow", as
       `overflow at ${width}`,
     ).toBeTruthy();
   }
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page
-    .getByRole("button", { name: "Join the early birds" })
-    .last()
-    .click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).not.toBeVisible();
+
 });
 
-test("landing page, signup dialog and guide pass automated accessibility checks", async ({
+test("landing page and guide pass automated accessibility checks", async ({
   page,
 }) => {
   const { default: AxeBuilder } = await import("@axe-core/playwright");
@@ -171,20 +130,6 @@ test("landing page, signup dialog and guide pass automated accessibility checks"
       targets: v.nodes.map((n) => n.target),
     })),
   ).toEqual([]);
-  await page
-    .getByRole("button", { name: "Join the early birds" })
-    .first()
-    .click();
-  result = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-    .analyze();
-  expect(
-    result.violations.map((v) => ({
-      id: v.id,
-      targets: v.nodes.map((n) => n.target),
-    })),
-  ).toEqual([]);
-  await page.keyboard.press("Escape");
   await page.goto("/journal/sourdough-baking-schedule");
   result = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
@@ -204,22 +149,8 @@ test("recipe choices and practical scheduling examples explain the product", asy
   await expect(
     page.getByRole("heading", { name: "Rosemary focaccia" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Out during the day", exact: true })
-    .click();
-  await expect(page.locator(".availability")).toContainText("07:00–08:00");
-  await expect(
-    page.getByRole("heading", { name: "No hands-on tasks" }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Plans have changed", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "See your revised next steps" }),
-  ).toBeVisible();
-  await expect(page.locator(".fridge-note")).toContainText(
-    "if no safe fit exists",
-  );
+  await expect(page.locator(".schedule-demo")).toContainText("Static illustration — not a working planner");
+  await expect(page.locator(".schedule-demo button, .schedule-demo input, .schedule-demo select")).toHaveCount(0);
   for (const width of [360, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const device = await page.locator(".hero-phone").evaluate((el) => {

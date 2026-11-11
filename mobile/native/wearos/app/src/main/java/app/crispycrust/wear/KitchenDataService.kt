@@ -9,10 +9,15 @@ import org.json.JSONObject
 
 class KitchenDataService : WearableListenerService() {
     override fun onDataChanged(events: DataEventBuffer) {
-        for (event in events) if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/crispy/task") {
+        for (event in events) {
+            if (event.type == DataEvent.TYPE_DELETED && event.dataItem.uri.path == "/crispy/task") {
+                getSharedPreferences("crispy", MODE_PRIVATE).edit().remove("snapshot").apply()
+            }
+            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/crispy/task") {
             val snapshot = DataMapItem.fromDataItem(event.dataItem).dataMap.getString("snapshot") ?: continue
             val valid = try { JSONObject(snapshot).getInt("schemaVersion") == 1 } catch (_: Exception) { false }
             if (valid) getSharedPreferences("crispy", MODE_PRIVATE).edit().putString("snapshot", snapshot).apply()
+            }
         }
     }
     override fun onMessageReceived(event: MessageEvent) {

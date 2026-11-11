@@ -2,7 +2,7 @@
 -- Apply as migration owner. Client writes go through checked commands, never table DML.
 create schema if not exists app_private;
 revoke all on schema app_private from public;
-grant usage on schema app_private to authenticated;
+grant usage on schema app_private to authenticated,service_role;
 
 create table public.cc_profiles (
  id uuid primary key references auth.users(id) on delete cascade,
@@ -163,6 +163,23 @@ declare u uuid:=app_private.actor();k uuid;begin
  insert into public.cc_memberships(kitchen_id,user_id,role) values(k,u,'owner');return jsonb_build_object('kitchen_id',k);
 end $$;
 
+create function app_private.validate_record(p_kitchen uuid,p_kind text,p_data jsonb)returns void language plpgsql security definer set search_path=''as $$declare key text;v jsonb;parent uuid;begin
+ if jsonb_typeof(p_data)<>'object'or octet_length(p_data::text)>262144 then raise exception 'INVALID_RECORD';end if;
+ if p_data->>'status'in('published','reviewed','kitchen_tested','validated')or p_data->'kitchenValidated'='true'::jsonb then raise exception 'REVIEW_AUTHORITY_REQUIRED';end if;
+ if p_kind='starter'and(length(coalesce(p_data->>'name',''))not between 1 and 80)then raise exception 'INVALID_STARTER_NAME';end if;
+ if p_kind='recipe'and p_data?'ingredients'and jsonb_typeof(p_data->'ingredients')<>'array'then raise exception 'INVALID_RECIPE_INGREDIENTS';end if;
+ foreach key in array array['hydration','seed','water','salt','mass','quantity','capacity','total','durationSeconds']loop
+ if p_data?key then v:=p_data->key;if jsonb_typeof(v)not in('number','null')or(v<>'null'::jsonb and (v::text)::numeric<0)then raise exception 'INVALID_NUMERIC_FIELD';end if;end if;
+ end loop;
+ if p_kind='feed'and(coalesce(jsonb_typeof(p_data->'flour'),'')<>'number'or(p_data->>'flour')::numeric<=0)then raise exception 'INVALID_FEED_FLOUR';end if;
+ foreach key in array array['starterId','bakeId','correctsId']loop
+ if p_data?key then
+ begin parent:=(p_data->>key)::uuid;exception when invalid_text_representation then raise exception 'INVALID_PARENT_ID';end;
+ if not exists(select 1 from public.cc_aggregates where id=parent and kitchen_id=p_kitchen and deleted_at is null)then raise exception 'PARENT_NOT_IN_KITCHEN';end if;
+ end if;end loop;
+end $$;
+revoke execute on function app_private.validate_record(uuid,text,jsonb)from public,anon,authenticated;
+
 create function app_private.cc_sync_push(p_kitchen uuid,p_device uuid,p_operations jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
 declare u uuid:=app_private.require_member(p_kitchen,true);op jsonb;oid uuid;aid uuid;base bigint;r public.cc_aggregates;rev bigint;n bigint;res jsonb;cached jsonb;request jsonb;accepted jsonb:='[]';conflicts jsonb:='[]';typ text;kind text;dat jsonb;stamp timestamptz;begin
  if jsonb_typeof(p_operations)<>'array' or jsonb_array_length(p_operations)>100 or octet_length(p_operations::text)>1048576 then raise exception 'INVALID_BATCH';end if;
@@ -185,6 +202,7 @@ declare u uuid:=app_private.require_member(p_kitchen,true);op jsonb;oid uuid;aid
  if kind is null or dat is null or jsonb_typeof(dat)<>'object' then raise exception 'INVALID_AGGREGATE';end if;
  if base>0 and r.kind<>kind then raise exception 'KIND_IMMUTABLE';end if;
  if dat ?| array['kitchen_id','created_by','actor_id','entitlements','moderator_role','approved','tested','reviewed_by'] then raise exception 'PRIVILEGED_FIELD';end if;
+ perform app_private.validate_record(p_kitchen,kind,dat);
  insert into public.cc_aggregates(id,kitchen_id,kind,revision,data,created_by) values(aid,p_kitchen,kind,rev,dat,u)
  on conflict(id) do update set revision=rev,data=excluded.data,updated_at=now();
  n:=app_private.change(p_kitchen,aid,kind,rev,'upsert',jsonb_build_object('data',dat,'schema_version',coalesce((op->>'schema_version')::integer,1)));
@@ -254,6 +272,7 @@ end $$;
 create function app_private.cc_create_invite(p_kitchen uuid,p_role text,p_expires_seconds integer default 604800) returns jsonb language plpgsql security definer set search_path='' as $$
 declare u uuid:=app_private.require_member(p_kitchen,true,true);token text:=gen_random_uuid()::text||gen_random_uuid()::text;i uuid;begin
  if p_role not in ('viewer','editor','admin') or p_expires_seconds not between 60 and 604800 then raise exception 'INVALID_INVITE';end if;
+ if p_role='admin'and not exists(select 1 from public.cc_kitchens where id=p_kitchen and owner_id=u)then raise exception 'OWNER_REQUIRED';end if;
  insert into app_private.invites(kitchen_id,token_hash,role,created_by,expires_at) values(p_kitchen,app_private.hash_token(token),p_role,u,now()+make_interval(secs=>p_expires_seconds)) returning id into i;
  return jsonb_build_object('invite_id',i,'token',token,'expires_in_seconds',p_expires_seconds);
 end $$;
@@ -261,7 +280,7 @@ create function app_private.cc_redeem_invite(p_token text) returns jsonb languag
 declare u uuid:=app_private.actor();i app_private.invites;begin
  select * into i from app_private.invites where token_hash=app_private.hash_token(p_token) for update;
  if not found or i.revoked_at is not null or i.expires_at<=now() or i.redeemed_by is not null then raise exception 'INVITE_INVALID_OR_EXPIRED';end if;
- if exists(select 1 from public.cc_kitchens where id=i.kitchen_id and deleted_at is not null) then raise exception 'INVITE_INVALID_OR_EXPIRED';end if;
+ if not exists(select 1 from public.cc_kitchens k join public.cc_memberships m on m.kitchen_id=k.id join public.cc_profiles p on p.id=m.user_id where k.id=i.kitchen_id and k.deleted_at is null and m.user_id=i.created_by and m.status='active'and m.role in('owner','admin')and p.account_state='active'and(i.role<>'admin'or k.owner_id=i.created_by))then raise exception 'INVITE_INVALID_OR_EXPIRED';end if;
  insert into public.cc_memberships(kitchen_id,user_id,role) values(i.kitchen_id,u,i.role) on conflict(kitchen_id,user_id) do update set role=case when cc_memberships.role='owner' then 'owner' else excluded.role end,status='active',revoked_at=null;
  update app_private.invites set redeemed_by=u where id=i.id;
  update public.cc_kitchens set membership_revision=membership_revision+1 where id=i.kitchen_id;
@@ -276,10 +295,12 @@ declare u uuid:=app_private.require_member(p_kitchen,true,true);begin
  insert into app_private.audit_events(actor_id,action,target_id) values(u,'member_revoked',p_user);
  return jsonb_build_object('revoked',true);
 end $$;
-create function app_private.cc_create_share(p_kitchen uuid,p_aggregate uuid,p_fields text[],p_expires_at timestamptz default null) returns jsonb language plpgsql security definer set search_path='' as $$
+create function app_private.cc_create_share(p_kitchen uuid,p_aggregate uuid,p_fields text[],p_expires_at timestamptz default null,p_expected_revision bigint default null) returns jsonb language plpgsql security definer set search_path='' as $$
 declare u uuid:=app_private.require_member(p_kitchen,true);r public.cc_aggregates;snapshot jsonb;token text:=gen_random_uuid()::text||gen_random_uuid()::text;cid uuid;begin
  select * into r from public.cc_aggregates where id=p_aggregate and kitchen_id=p_kitchen and deleted_at is null;
  if not found then raise exception 'SOURCE_NOT_FOUND';end if;
+ if p_expires_at is not null and p_expires_at<=now()then raise exception 'INVALID_EXPIRY';end if;
+ if p_expected_revision is null or r.revision<>p_expected_revision then raise exception using errcode='23505',message='REVISION_CONFLICT';end if;
  if cardinality(p_fields)>20 or not p_fields<@array['title','name','formula','ingredients','steps','notes','outcome','hydration','yield','attribution'] then raise exception 'SHARE_FIELD_FORBIDDEN';end if;
  select coalesce(jsonb_object_agg(key,value),'{}') into snapshot from jsonb_each(r.data) where key=any(p_fields);
  snapshot:=jsonb_build_object('kind',r.kind,'source_id',r.id,'source_revision',r.revision,'data',snapshot);
@@ -327,8 +348,10 @@ create function app_private.cc_block(p_user uuid) returns jsonb language plpgsql
 declare u uuid:=app_private.actor();begin insert into public.cc_blocks(user_id,blocked_user_id) values(u,p_user) on conflict do nothing;return jsonb_build_object('blocked',true);end $$;
 create function app_private.cc_request_delete() returns jsonb language plpgsql security definer set search_path='' as $$
 declare u uuid:=app_private.actor();j uuid;begin
+ if not exists(select 1 from auth.users where id=u and last_sign_in_at>now()-interval '5 minutes')then raise exception 'REAUTH_REQUIRED';end if;
  if exists(select 1 from public.cc_kitchens k join public.cc_memberships m on m.kitchen_id=k.id where k.owner_id=u and k.kind<>'personal' and k.deleted_at is null and m.user_id<>u and m.status='active') then raise exception 'OWNERSHIP_TRANSFER_REQUIRED';end if;
  insert into public.cc_jobs(user_id,kind,input) values(u,'delete_account','{}') returning id into j;
+ update public.cc_jobs set status='canceled',input='{}',result=null,lease_token=null,lease_until=null where user_id=u and kind<>'delete_account'and status in('queued','running');
  update public.cc_profiles set account_state='deleting' where id=u;
  update public.cc_shared_cards set revoked_at=now() where owner_id=u and revoked_at is null;
  insert into app_private.audit_events(actor_id,action,target_id) values(u,'deletion_requested',u);
@@ -374,7 +397,7 @@ create function app_private.cc_worker_claim(p_limit integer default 5) returns j
 declare result jsonb;begin
  if p_limit not between 1 and 20 then raise exception 'INVALID_LIMIT';end if;
  update public.cc_jobs set status='failed',error_code='RETRY_EXHAUSTED',lease_until=null where attempt>=3 and (status='queued' or(status='running' and lease_until<now()));
- with selected as(select id from public.cc_jobs where attempt<3 and expires_at>now() and ((status='queued' and available_at<=now()) or(status='running' and lease_until<now())) order by available_at for update skip locked limit p_limit), claimed as(update public.cc_jobs j set status='running',attempt=attempt+1,lease_until=now()+interval '2 minutes',lease_token=gen_random_uuid() from selected s where j.id=s.id returning j.*) select coalesce(jsonb_agg(to_jsonb(c)),'[]') into result from claimed c;return result;
+ with selected as(select id from public.cc_jobs where attempt<3 and expires_at>now() and(kind='delete_account'or exists(select 1 from public.cc_profiles p where p.id=cc_jobs.user_id and p.account_state='active'))and ((status='queued' and available_at<=now()) or(status='running' and lease_until<now())) order by available_at for update skip locked limit p_limit), claimed as(update public.cc_jobs j set status='running',attempt=attempt+1,lease_until=now()+interval '2 minutes',lease_token=gen_random_uuid() from selected s where j.id=s.id returning j.*) select coalesce(jsonb_agg(to_jsonb(c)),'[]') into result from claimed c;return result;
 end $$;
 create function app_private.cc_worker_finish(p_job uuid,p_lease uuid,p_result jsonb default null,p_error text default null,p_retry boolean default false) returns boolean language plpgsql security definer set search_path='' as $$begin
  update public.cc_jobs set status=case when p_error is null then 'complete' when p_retry and attempt<3 then 'queued' else 'failed' end,result=p_result,error_code=p_error,lease_until=null,lease_token=null,available_at=now()+make_interval(secs=>least(300,attempt*30)) where id=p_job and lease_token=p_lease and status='running' and lease_until>now();return found;
@@ -421,11 +444,11 @@ revoke execute on function public.cc_revoke_member(uuid,uuid) from public,anon,a
 grant execute on function public.cc_revoke_member(uuid,uuid) to authenticated;
 revoke execute on function app_private.cc_revoke_member(uuid,uuid) from public,anon,authenticated;
 grant execute on function app_private.cc_revoke_member(uuid,uuid) to authenticated;
-create function public.cc_create_share(p_kitchen uuid,p_aggregate uuid,p_fields text[],p_expires_at timestamptz default null) returns jsonb language sql security invoker set search_path='' as $$select app_private.cc_create_share(p_kitchen,p_aggregate,p_fields,p_expires_at)$$;
-revoke execute on function public.cc_create_share(uuid,uuid,text[],timestamptz) from public,anon,authenticated;
-grant execute on function public.cc_create_share(uuid,uuid,text[],timestamptz) to authenticated;
-revoke execute on function app_private.cc_create_share(uuid,uuid,text[],timestamptz) from public,anon,authenticated;
-grant execute on function app_private.cc_create_share(uuid,uuid,text[],timestamptz) to authenticated;
+create function public.cc_create_share(p_kitchen uuid,p_aggregate uuid,p_fields text[],p_expires_at timestamptz default null,p_expected_revision bigint default null) returns jsonb language sql security invoker set search_path='' as $$select app_private.cc_create_share(p_kitchen,p_aggregate,p_fields,p_expires_at,p_expected_revision)$$;
+revoke execute on function public.cc_create_share(uuid,uuid,text[],timestamptz,bigint) from public,anon,authenticated;
+grant execute on function public.cc_create_share(uuid,uuid,text[],timestamptz,bigint) to authenticated;
+revoke execute on function app_private.cc_create_share(uuid,uuid,text[],timestamptz,bigint) from public,anon,authenticated;
+grant execute on function app_private.cc_create_share(uuid,uuid,text[],timestamptz,bigint) to authenticated;
 create function public.cc_read_share(p_token text) returns jsonb language sql security invoker set search_path='' as $$select app_private.cc_read_share(p_token)$$;
 revoke execute on function public.cc_read_share(text) from public,anon,authenticated;
 grant execute on function public.cc_read_share(text) to authenticated;

@@ -10,6 +10,8 @@ import 'data/local_store.dart';
 import 'screens/main_screen.dart';
 import 'services_screen.dart';
 import 'platform/local_notifications.dart';
+import 'platform/kitchen_platform.dart';
+import 'platform/companion_snapshot.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,20 +33,36 @@ class CrispyCrustApp extends StatefulWidget {
 }
 class _CrispyCrustAppState extends State<CrispyCrustApp> with WidgetsBindingObserver {
   final gateway=LocalNotificationGateway();
+  final kitchen=KitchenPlatform();
+  final navigator=GlobalKey<NavigatorState>();
   Timer? debounce;
-  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);widget.store.addListener(changed);changed();}
+  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);widget.store.addListener(changed);
+    kitchen.listenForCompanionActions((action)async{
+      final bake=widget.store.find(action.bakeId);if(bake==null)return false;
+      if(action.type=='open'){navigator.currentState?.push(MaterialPageRoute(builder:(_)=>BakeDetail(store:widget.store,id:action.bakeId)));return true;}
+      return widget.store.acknowledgeCompanion(operationId:action.operationId,bakeId:action.bakeId,stepId:action.stepId,expectedRevision:action.expectedRevision);
+    });changed();}
   void changed(){
     debounce?.cancel();
-    if(widget.store.preference('nativeReminders',false)==true) {
-      debounce=Timer(const Duration(milliseconds:300),()async{
-        try{await reconcileReminders(widget.store,gateway);}catch(_){/* Deadline records remain visible; capability can be checked in Connected services. */}
-      });
-    }
+    debounce=Timer(const Duration(milliseconds:300),()async{
+      if(widget.store.preference('nativeReminders',false)==true) {
+        try{await reconcileReminders(widget.store,gateway);}catch(_){/* In-app deadlines remain authoritative. */}
+      }
+      try{
+        final bakes=widget.store.records('bake').where((b)=>!['complete','abandoned','archived'].contains(b.text('status'))).toList();
+        if(widget.store.preference('companionSnapshots',false)!=true || bakes.isEmpty){await kitchen.clearCompanion();return;}
+        final bake=bakes.first;final steps=(bake.fields['steps'] as List).cast<Map>();final index=bake.number('stepIndex').toInt();
+        if(index>=steps.length){await kitchen.clearCompanion();return;}
+        final step=steps[index];final due=DateTime.tryParse(step['plannedEnd']?.toString()??'');
+        if(due==null)return;
+        await kitchen.publishCompanion(CompanionTaskSnapshot(bakeId:bake.id,stepId:step['id'] as String,title:bake.text('name'),action:step['title'] as String,revision:bake.revision,dueAt:due.toUtc(),generatedAt:DateTime.now().toUtc()),enableLiveActivity:widget.store.preference('liveActivity',false)==true);
+      }catch(_){/* Unsupported native surfaces do not block local baking. */}
+    });
   }
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed)changed();}
   @override void dispose(){debounce?.cancel();widget.store.removeListener(changed);WidgetsBinding.instance.removeObserver(this);super.dispose();}
   @override Widget build(BuildContext context)=>ListenableBuilder(listenable:widget.store,builder:(context,_)=>MaterialApp(
-    title:'Crispy Crust',debugShowCheckedModeBanner:false,
+    title:'Crispy Crust',navigatorKey:navigator,debugShowCheckedModeBanner:false,
     theme:buildTheme(false),darkTheme:buildTheme(true),themeMode:widget.store.darkMode?ThemeMode.dark:ThemeMode.light,
     home:MainScreen(store:widget.store,servicesBuilder:(context)=>ServicesScreen(store:widget.store))));
 }

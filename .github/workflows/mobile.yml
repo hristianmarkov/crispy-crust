@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['mobile/**', '.github/workflows/mobile.yml']
   push:
-    branches: [main, feat/flutter-mobile-app]
+    branches: [main]
     paths: ['mobile/**', '.github/workflows/mobile.yml']
   workflow_dispatch:
 permissions:
@@ -49,13 +49,35 @@ jobs:
         run: dart pub get && dart test
       - name: App dependencies and analysis
         working-directory: mobile/apps/mobile
-        run: flutter pub get && flutter analyze --no-fatal-infos
+        run: flutter pub get && dart run flutter_launcher_icons && flutter analyze --no-fatal-infos
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-lockfiles
+          path: |
+            mobile/apps/mobile/pubspec.lock
+            mobile/packages/baking_domain/pubspec.lock
+            mobile/packages/content_models/pubspec.lock
       - name: App and persistence tests
         working-directory: mobile/apps/mobile
         run: flutter test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flutter-screen-captures
+          path: mobile/apps/mobile/build/screenshots/*.png
+          if-no-files-found: ignore
       - name: Android debug build
         working-directory: mobile/apps/mobile
         run: flutter build apk --debug
+      - name: Wear OS debug build
+        working-directory: mobile/apps/mobile/android
+        run: ./gradlew :wear:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wearos-debug
+          path: mobile/native/wearos/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug
@@ -70,11 +92,16 @@ jobs:
           flutter-version: '3.47.9'
           channel: stable
           cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install pinned CocoaPods and project editor
+        run: gem install cocoapods -v 1.16.2 --no-document && gem install xcodeproj -v 1.27.0 --no-document
       - name: Generate missing native runners
         run: bash mobile/scripts/bootstrap.sh
       - name: Compile iOS without signing
         working-directory: mobile/apps/mobile
-        run: flutter pub get && flutter build ios --debug --no-codesign
+        run: flutter pub get && dart run flutter_launcher_icons && flutter build ios --debug --no-codesign
       - name: Native companion model tests
         working-directory: mobile/native/apple
         run: swift test

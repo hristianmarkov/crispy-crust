@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { ArrowUpRight, Heart } from "lucide-react";
-import { Brand, LogoMark } from "./brand";
-import { WaitlistButton } from "./site-interactions";
+import { Brand } from "./brand";
 export function LaunchSection() {
   return (
-    <section className="launch-section" id="early-access">
+    <section className="launch-section" id="app-status">
       <div className="launch-sprig">✳</div>
       <span className="eyebrow">LESS OVERTHINKING. MORE OVEN SPRING.</span>
       <h2>
@@ -13,13 +11,11 @@ export function LaunchSection() {
         smells like <em>good bread.</em>
       </h2>
       <p>
-        Something thoughtful is rising.
+        Good bread, on your time.
         <br />
-        Be the first to know when it’s ready.
+        The iOS and Android app is in development.
       </p>
-      <WaitlistButton className="button button-light">
-        Join the early birds <ArrowUpRight size={17} />
-      </WaitlistButton>
+      <p className="launch-status">Not publicly released yet. A release date and pricing have not been announced. Store links will appear here when the app is available.</p>
       <div className="launch-meta">
         <span className="tiny-dot" /> In the making, for iOS & Android
       </div>
@@ -38,7 +34,7 @@ export function Footer() {
           <Link href="/#how-it-works">How it works</Link>
           <Link href="/#features">The good stuff</Link>
           <Link href="/journal">The Baker’s Journal</Link>
-          <Link href="/tools">Free baking tools</Link>
+          <Link href="/tools">Baking explainers</Link>
           <Link href="/about">About & editorial policy</Link>
           <Link href="/#faq">FAQs</Link>
         </div>

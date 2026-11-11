@@ -4,6 +4,7 @@ import android.Manifest
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import org.json.JSONObject
+import com.google.android.gms.wearable.*
 import android.content.pm.PackageManager
 import android.content.ContentUris
 import android.provider.CalendarContract
@@ -15,16 +16,25 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private lateinit var kitchenChannel: MethodChannel
+    private var watchListener: MessageClient.OnMessageReceivedListener? = null
     private var pendingCalendar: Triple<Long, Long, MethodChannel.Result>? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.crispycrust/kitchen")
-            .setMethodCallHandler { call, result ->
+        kitchenChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.crispycrust/kitchen")
+        kitchenChannel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "setKeepAwake" -> {
                         if (call.argument<Boolean>("enabled") == true) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        result.success(null)
+                    }
+                    "clearCompanion" -> {
+                        getSharedPreferences("crispy_companion", MODE_PRIVATE).edit().remove("snapshot").apply()
+                        val manager = AppWidgetManager.getInstance(this)
+                        KitchenWidget().onUpdate(this, manager, manager.getAppWidgetIds(ComponentName(this, KitchenWidget::class.java)))
+                        Wearable.getDataClient(this).deleteDataItems(android.net.Uri.parse("wear://*/crispy/task"))
                         result.success(null)
                     }
                     "publishCompanion" -> {
@@ -34,7 +44,11 @@ class MainActivity : FlutterActivity() {
                             getSharedPreferences("crispy_companion", MODE_PRIVATE).edit().putString("snapshot", JSONObject(snapshot).toString()).apply()
                             val manager = AppWidgetManager.getInstance(this)
                             KitchenWidget().onUpdate(this, manager, manager.getAppWidgetIds(ComponentName(this, KitchenWidget::class.java)))
-                            result.success(mapOf("widget" to true, "watch" to false))
+                            val request = PutDataMapRequest.create("/crispy/task")
+                            request.dataMap.putString("snapshot", JSONObject(snapshot).toString())
+                            Wearable.getDataClient(this).putDataItem(request.asPutDataRequest().setUrgent())
+                                .addOnSuccessListener { result.success(mapOf("widget" to true, "watchTransport" to true, "watchReceiptConfirmed" to false)) }
+                                .addOnFailureListener { result.success(mapOf("widget" to true, "watchTransport" to false)) }
                         }
                     }
                     "readBusy" -> {
@@ -53,6 +67,29 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        watchListener = MessageClient.OnMessageReceivedListener { event ->
+            if (event.path == "/crispy/action") {
+                val payload = try { JSONObject(String(event.data, Charsets.UTF_8)) } catch (_: Exception) { null }
+                if (payload != null) runOnUiThread {
+                    val args = mapOf("operationId" to payload.optString("operationId"), "bakeId" to payload.optString("bakeId"),
+                        "stepId" to payload.optString("stepId"), "expectedRevision" to payload.optInt("expectedRevision"), "type" to payload.optString("type"))
+                    kitchenChannel.invokeMethod("companionAction", args, object : MethodChannel.Result {
+                        private fun reply(accepted: Boolean) {
+                            Wearable.getMessageClient(this@MainActivity).sendMessage(event.sourceNodeId, "/crispy/ack",
+                                JSONObject(mapOf("accepted" to accepted)).toString().toByteArray(Charsets.UTF_8))
+                        }
+                        override fun success(result: Any?) { reply((result as? Map<*, *>)?.get("accepted") == true) }
+                        override fun error(code: String, message: String?, details: Any?) { reply(false) }
+                        override fun notImplemented() { reply(false) }
+                    })
+                }
+            }
+        }
+        Wearable.getMessageClient(this).addListener(watchListener!!)
+    }
+    override fun onDestroy() {
+        watchListener?.let { Wearable.getMessageClient(this).removeListener(it) }
+        super.onDestroy()
     }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)

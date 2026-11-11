@@ -37,6 +37,6 @@ export const faqs = [
   {
     question: "When can I download it? Will it be on iOS and Android?",
     answer:
-      "The app is in development, and a release date and pricing haven’t been announced. We’re planning for iOS and Android. Join the early-access list and tell us your preferred platform to receive launch updates.",
+      "The app is in development, and a release date and pricing haven’t been announced. We’re planning for iOS and Android. This website introduces the app and shares baking guides. Store links will be added when the app is publicly available.",
   },
 ];

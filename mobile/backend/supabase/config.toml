@@ -424,3 +424,17 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# Access tokens are verified with Auth in the router, then forwarded under caller
+# RLS. Publishable-key gateway compatibility is not a bypass of authentication.
+[functions.app-api]
+verify_jwt = false
+entrypoint = "../functions/app-api/index.ts"
+
+[functions.job-worker]
+verify_jwt = false
+entrypoint = "../functions/job-worker/index.ts"
+
+[functions.revenuecat-webhook]
+verify_jwt = false
+entrypoint = "../functions/revenuecat-webhook/index.ts"

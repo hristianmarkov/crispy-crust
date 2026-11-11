@@ -43,6 +43,19 @@ class LocalNotificationGateway implements ReminderGateway {
         'Reminders are off. Deadlines remain in the app; enable alerts in device settings.', false);
   }
 
+  Future<CapabilityResult<bool>> requestExactScheduling() async {
+    if (defaultTargetPlatform != TargetPlatform.android || kIsWeb) {
+      return const CapabilityResult(CapabilityStatus.unsupported,
+        'Exact-alarm permission is an Android capability. Other platforms use their native reminder scheduling.');
+    }
+    if (!_initialized) { await initialize(); }
+    final allowed = await plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.requestExactAlarmsPermission();
+    return allowed == true ? const CapabilityResult.available(true) :
+      const CapabilityResult(CapabilityStatus.denied,
+        'Precise scheduling is unavailable. Alerts may be delayed; in-app deadlines remain accurate.', false);
+  }
+
   @override
   Future<List<PendingReminder>> pending() async {
     if (!supported) { return []; }
@@ -58,7 +71,7 @@ class LocalNotificationGateway implements ReminderGateway {
 
   @override
   Future<void> schedule(ReminderIntent reminder) async {
-    if (!supported) { return; }
+    if (!supported) { throw UnsupportedError('Native reminders require iOS or Android'); }
     if (!_initialized) { await initialize(); }
     final android = plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     final exactAllowed = await android?.canScheduleExactNotifications() ?? false;

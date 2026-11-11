@@ -1,3 +1,5 @@
+import type { MediaService } from "./media.ts";
+import type { BillingService } from "./billing.ts";
 /** Pure Web API router; runtime bootstrap is in index.ts. No service-role client. */
 export type Json = Record<string, unknown>;
 export class ApiError extends Error {
@@ -18,6 +20,9 @@ export interface RouterConfig {
   allowedOrigins: readonly string[];
   coachEnabled: boolean;
   importEnabled: boolean;
+  imageEnabled?: boolean;
+  media?: MediaService;
+  billing?: BillingService;
 }
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -129,6 +134,40 @@ export function createRouter(config: RouterConfig) {
         new URL(req.url).pathname.replace(/^.*\/app-api(?:\/v1)?/, "") || "/";
       const url = new URL(req.url);
       if (req.method === "GET") {
+        const mediaRead = path.match(/^\/media\/([^/]+)\/download$/);
+        if (mediaRead) {
+          if (!config.media)
+            throw new ApiError("MEDIA_VERIFICATION_NOT_CONFIGURED", 503);
+          return response(await config.media.read(uuid(mediaRead[1]), token));
+        }
+        if (path === "/community/feed" || path === "/community/mine")
+          return response(
+            await config.backend.rows(
+              "cc_posts",
+              `select=id,author_id,title,status,snapshot,created_at&${path.endsWith("mine") ? "author_id=eq." + user.id : "status=eq.published"}&order=created_at.desc,id.desc&limit=50`,
+              token,
+            ),
+          );
+        const commentList = path.match(
+          /^\/community\/posts\/([^/]+)\/comments$/,
+        );
+        if (commentList)
+          return response(
+            await config.backend.rows(
+              "cc_comments",
+              `post_id=eq.${uuid(commentList[1])}&select=id,author_id,body,status,created_at&order=created_at.asc,id.asc&limit=100`,
+              token,
+            ),
+          );
+        if (path === "/staff/reports")
+          return response(
+            await config.backend.rpc("cc_staff_reports", {}, token),
+          );
+        if (path === "/staff/pending")
+          return response(
+            await config.backend.rpc("cc_staff_pending", {}, token),
+          );
+
         if (path === "/sync/pull")
           return response(
             await config.backend.rpc(
@@ -142,6 +181,15 @@ export function createRouter(config: RouterConfig) {
                 ),
                 p_limit: number(url.searchParams.get("limit") ?? 100, 1, 500),
               },
+              token,
+            ),
+          );
+        const memberList = path.match(/^\/kitchens\/([^/]+)\/members$/);
+        if (memberList)
+          return response(
+            await config.backend.rpc(
+              "cc_list_members",
+              { p_kitchen: uuid(memberList[1]) },
               token,
             ),
           );
@@ -174,6 +222,14 @@ export function createRouter(config: RouterConfig) {
         throw new ApiError("NOT_FOUND", 404);
       }
       if (req.method === "DELETE") {
+        const mediaDelete = path.match(/^\/media\/([^/]+)$/);
+        if (mediaDelete) {
+          if (!config.media)
+            throw new ApiError("MEDIA_VERIFICATION_NOT_CONFIGURED", 503);
+          return response(
+            await config.media.remove(uuid(mediaDelete[1]), token),
+          );
+        }
         const share = path.match(/^\/shares\/([^/]+)$/);
         if (share)
           return response(
@@ -190,6 +246,84 @@ export function createRouter(config: RouterConfig) {
       const body = await jsonBody(req);
       const rpc = (name: string, params: Json) =>
         config.backend.rpc(name, params, token);
+      if (path === "/community/posts") {
+        only(body, ["share_id", "title"]);
+        return response(
+          await rpc("cc_publish_post", {
+            p_share: uuid(body.share_id),
+            p_title: string(body.title, 160),
+            p_operation: operation,
+          }),
+          201,
+        );
+      }
+      const commentPost = path.match(/^\/community\/posts\/([^/]+)\/comments$/);
+      if (commentPost) {
+        only(body, ["body"]);
+        return response(
+          await rpc("cc_comment", {
+            p_post: uuid(commentPost[1]),
+            p_body: string(body.body, 2000),
+            p_operation: operation,
+          }),
+          201,
+        );
+      }
+      if (path === "/community/follows") {
+        only(body, ["creator_id", "following"]);
+        if (typeof body.following !== "boolean")
+          throw new ApiError("INVALID_BOOLEAN");
+        return response(
+          await rpc("cc_follow", {
+            p_creator: uuid(body.creator_id),
+            p_following: body.following,
+          }),
+        );
+      }
+      if (path === "/staff/moderate") {
+        only(body, ["target_type", "target_id", "action", "reason"]);
+        return response(
+          await rpc("cc_moderate", {
+            p_type: string(body.target_type, 20),
+            p_target: uuid(body.target_id),
+            p_action: string(body.action, 20),
+            p_reason: string(body.reason, 500),
+          }),
+        );
+      }
+      if (path === "/staff/reports/resolve") {
+        only(body, ["report_id", "resolution"]);
+        return response(
+          await rpc("cc_resolve_report", {
+            p_report: uuid(body.report_id),
+            p_resolution: string(body.resolution, 20),
+          }),
+        );
+      }
+      if (path === "/members/role") {
+        only(body, ["kitchen_id", "user_id", "role"]);
+        return response(
+          await rpc("cc_set_role", {
+            p_kitchen: uuid(body.kitchen_id),
+            p_user: uuid(body.user_id),
+            p_role: string(body.role, 10),
+          }),
+        );
+      }
+      if (path === "/kitchens/transfer") {
+        only(body, ["kitchen_id", "user_id"]);
+        if (
+          !user.last_sign_in_at ||
+          Date.now() - Date.parse(user.last_sign_in_at) > 300000
+        )
+          throw new ApiError("REAUTH_REQUIRED", 401);
+        return response(
+          await rpc("cc_transfer_owner", {
+            p_kitchen: uuid(body.kitchen_id),
+            p_user: uuid(body.user_id),
+          }),
+        );
+      }
       if (path === "/account/bootstrap") {
         only(body, ["display_name"]);
         return response(
@@ -277,6 +411,7 @@ export function createRouter(config: RouterConfig) {
           "source_id",
           "selected_fields",
           "expires_at",
+          "expected_source_revision",
         ]);
         if (
           !Array.isArray(body.selected_fields) ||
@@ -289,6 +424,11 @@ export function createRouter(config: RouterConfig) {
             p_aggregate: uuid(body.source_id),
             p_fields: body.selected_fields,
             p_expires_at: body.expires_at ?? null,
+            p_expected_revision: number(
+              body.expected_source_revision,
+              1,
+              Number.MAX_SAFE_INTEGER,
+            ),
           }),
           201,
         );
@@ -389,10 +529,94 @@ export function createRouter(config: RouterConfig) {
           throw new ApiError("REAUTH_REQUIRED", 401);
         return response(await rpc("cc_request_delete", {}), 202);
       }
-      if (path === "/purchases/verify")
-        throw new ApiError("STORE_VERIFICATION_NOT_CONFIGURED", 503);
-      if (path === "/media/uploads")
-        throw new ApiError("MEDIA_VERIFICATION_NOT_CONFIGURED", 503);
+      if (path === "/purchases/verify") {
+        if (!config.billing)
+          throw new ApiError("STORE_VERIFICATION_NOT_CONFIGURED", 503);
+        only(body, ["app_user_id"]);
+        if (body.app_user_id && body.app_user_id !== user.id)
+          throw new ApiError("BILLING_IDENTITY_MISMATCH", 403);
+        return response(await config.billing.refresh(user.id));
+      }
+      if (path === "/media/uploads") {
+        if (!config.media)
+          throw new ApiError("MEDIA_VERIFICATION_NOT_CONFIGURED", 503);
+        only(body, [
+          "kitchen_id",
+          "attachment_target",
+          "sha256",
+          "mime_type",
+          "bytes",
+          "width",
+          "height",
+        ]);
+        uuid(body.kitchen_id);
+        uuid(body.attachment_target);
+        if (
+          typeof body.sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/.test(body.sha256) ||
+          !["image/jpeg", "image/png", "image/webp"].includes(
+            String(body.mime_type),
+          )
+        )
+          throw new ApiError("INVALID_MEDIA");
+        number(body.bytes, 1, 2097152);
+        number(body.width, 1, 4096);
+        number(body.height, 1, 4096);
+        return response(
+          await config.media.prepare(body, operation, token),
+          201,
+        );
+      }
+      const mediaComplete = path.match(/^\/media\/([^/]+)\/complete$/);
+      if (mediaComplete) {
+        if (!config.media)
+          throw new ApiError("MEDIA_VERIFICATION_NOT_CONFIGURED", 503);
+        only(body, []);
+        return response(
+          await config.media.complete(uuid(mediaComplete[1]), token),
+        );
+      }
+      if (path === "/analysis/requests") {
+        if (!config.imageEnabled)
+          throw new ApiError("IMAGE_PIPELINE_NOT_CONFIGURED", 503);
+        only(body, [
+          "kitchen_id",
+          "consent_version",
+          "question",
+          "media_ids",
+          "context",
+        ]);
+        string(body.consent_version, 50);
+        if (body.question) string(body.question, 4000);
+        if (
+          !Array.isArray(body.media_ids) ||
+          body.media_ids.length < 1 ||
+          body.media_ids.length > 2 ||
+          new Set(body.media_ids).size !== body.media_ids.length
+        )
+          throw new ApiError("INVALID_MEDIA_SELECTION");
+        const ids = body.media_ids.map(uuid);
+        const assets = (await config.backend.rows(
+          "cc_media",
+          `id=in.(${ids.join(",")})&status=eq.uploaded&select=id`,
+          token,
+        )) as unknown[];
+        if (assets.length !== ids.length)
+          throw new ApiError("MEDIA_NOT_FOUND", 404);
+        if (body.context) {
+          const context = object(body.context);
+          only(context, ["observations"]);
+        }
+        return response(
+          await rpc("cc_enqueue_job", {
+            p_operation: operation,
+            p_kind: "image",
+            p_input: body,
+            p_kitchen: body.kitchen_id ? uuid(body.kitchen_id) : null,
+          }),
+          202,
+        );
+      }
       throw new ApiError("NOT_FOUND", 404);
     } catch (error) {
       const e =

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/app_store.dart';
 import '../platform/export_share.dart';
+import '../platform/local_media.dart';
 
 // Screen state is deliberately separate from persisted kitchen records.
 class MainScreen extends StatefulWidget {
@@ -69,11 +71,10 @@ class _Page extends StatelessWidget {
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.fromLTRB(20, 12, 20, 32), children: children);
 }
 class _Section extends StatelessWidget {
-  const _Section(this.title, {this.trailing});
+  const _Section(this.title);
   final String title;
-  final Widget? trailing;
   @override
-  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(top: 24, bottom: 12), child: Row(children: [Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)), if (trailing != null) trailing!]));
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(top: 24, bottom: 12), child: Row(children: [Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)), ]));
 }
 class _Panel extends StatelessWidget {
   const _Panel({required this.children, this.tone = false});
@@ -203,9 +204,7 @@ class StarterDetail extends StatelessWidget {
     await _run(context, () => store.logFeed(id, seed: double.parse(f['seed']!), flour: double.parse(f['flour']!), water: double.parse(f['water']!), occurredAt: at), success: 'Actual feed saved on this phone.');
   }
   Future<void> _observe(BuildContext context) async {
-    final f = await _form(context, 'Record starter observation', const [_Field('height', 'Current height (mm)', numeric: true, required: false), _Field('baseline', 'Starting height (mm)', numeric: true, required: false), _Field('temperature', 'Temperature (°C)', numeric: true, required: false), _Field('peak', 'Peak: unknown, not yet, observed or falling', initial: 'unknown'), _Field('note', 'What can you see?', multiline: true, required: false)], explanation: 'A missed peak stays unknown. Height indicates volume rise only in a marked straight-sided container.');
-    if (f == null || !context.mounted) return;
-    await _run(context, () async {await store.save('observation', {'objectId': id, ...f, 'occurredAt': DateTime.now().toUtc().toIso8601String()});}, success: 'Observation recorded.');
+    await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => ObservationCaptureScreen(store: store, objectId: id, starter: true)));
   }
   Future<void> _mode(BuildContext context, AppRecord s) async {
     final selected = await showModalBottomSheet<String>(context: context, showDragHandle: true, builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [for (final mode in ['counter', 'fridge', 'travel', 'paused', 'revival']) ListTile(title: Text(mode[0].toUpperCase() + mode.substring(1)), leading: Icon(mode == s.text('storage') ? Icons.check_circle : Icons.circle_outlined), onTap: () => Navigator.pop(c, mode))])));
@@ -222,7 +221,7 @@ class StarterDetail extends StatelessWidget {
       const _Notice('No personalised peak prediction is shown until enough comparable confirmed peaks are available. Use observations and reviewed guidance; a timer cannot certify starter safety.'),
       const _Section('Observations'),
       if (observations.isEmpty) const Text('No observations yet. Record what you can measure; leave unknowns empty.'),
-      for (final o in observations) _Panel(children: [Text(_date(o.fields['occurredAt']), style: Theme.of(context).textTheme.labelLarge), Text('Peak: ${o.text('peak', 'unknown')}'), if (o.text('height').isNotEmpty) Text('Height ${o.text('height')} mm · baseline ${o.text('baseline', 'unknown')} mm'), if (o.text('temperature').isNotEmpty) Text('${o.text('temperature')} °C'), if (o.text('note').isNotEmpty) Text(o.text('note'))]),
+      for (final o in observations) _Panel(children: [Text(_date(o.fields['occurredAt']), style: Theme.of(context).textTheme.labelLarge), Text('Peak: ${o.text('peak', 'unknown')}'), if (o.text('height').isNotEmpty) Text('Height ${o.text('height')} mm · baseline ${o.text('baseline', 'unknown')} mm'), if (o.text('temperature').isNotEmpty) Text('${o.text('temperature')} °C'), if (o.text('note').isNotEmpty) Text(o.text('note')), if(o.fields['photo'] is Map) _LocalPhotoView(metadata: Map<String,dynamic>.from(o.fields['photo'] as Map), label: 'Your saved starter observation photo'), if(o.fields['photo'] is Map) TextButton(onPressed:()=>_removeObservationPhoto(context,store,o),child:const Text('Remove this private photo'))]),
       const _Section('Actual feed history'),
       if (feeds.isEmpty) const Text('No feeds recorded. Logging an earlier feed is supported.'),
       for (final f in feeds) _Panel(children: [Text(_date(f.fields['occurredAt']), style: Theme.of(context).textTheme.labelLarge), Text('${_grams(f.fields['seed'])} starter + ${_grams(f.fields['flour'])} flour + ${_grams(f.fields['water'])} water'), Text('Total build: ${_grams(_num(f.fields['seed']) + _num(f.fields['flour']) + _num(f.fields['water']))}'), TextButton(onPressed: () => _open(context, RecordHistoryScreen(store: store, record: f)), child: const Text('View / correct this record'))]),
@@ -407,9 +406,7 @@ class _BakeDetailState extends State<BakeDetail> {
   @override
   void dispose() {ticker?.cancel(); super.dispose();}
   Future<void> _observe() async {
-    final f = await _form(context, 'Record dough observation', const [_Field('temperature', 'Dough temperature (°C)', numeric: true, required: false), _Field('rise', 'Measured rise (%)', numeric: true, required: false), _Field('texture', 'Texture / what you can see', multiline: true, required: false)], explanation: 'Missing measurements stay unknown. Observations never complete a physical step automatically.');
-    if (f == null || !mounted) return;
-    await _run(context, () async {await widget.store.save('observation', {'objectId': widget.id, ...f, 'occurredAt': DateTime.now().toUtc().toIso8601String()});}, success: 'Dough observation saved.');
+    await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => ObservationCaptureScreen(store: widget.store, objectId: widget.id, starter: false)));
   }
   Future<void> _timer(AppRecord bake) async {
     final f = await _form(context, 'Set an independent timer', const [_Field('name', 'Check or task name'), _Field('minutes', 'Duration (minutes)', initial: '30', numeric: true)], explanation: 'The due time is saved on this phone. Notification delivery depends on platform permission and device state; do not rely on an app as an oven safety control.');
@@ -446,9 +443,9 @@ class _BakeDetailState extends State<BakeDetail> {
       for (var n = 0; n < steps.length; n++) ListTile(contentPadding: EdgeInsets.zero, leading: Icon(n < index ? Icons.check_circle : n == index ? Icons.radio_button_checked : Icons.circle_outlined), title: Text(_str(steps[n]['title'], _str(steps[n]['name'], 'Step ${n + 1}'))), subtitle: Text(_str(steps[n]['instructions'], _str(steps[n]['instruction'])))),
       const _Section('Actual observations'),
       if (observations.isEmpty) const Text('No observations recorded. Unmeasured values remain unknown.'),
-      for (final o in observations) _Panel(children: [Text(_date(o.fields['occurredAt'])), if (o.text('temperature').isNotEmpty) Text('Dough ${o.text('temperature')} °C'), if (o.text('rise').isNotEmpty) Text('Rise ${o.text('rise')}%'), Text(o.text('texture'))]),
+      for (final o in observations) _Panel(children: [Text(_date(o.fields['occurredAt'])), if (o.text('temperature').isNotEmpty) Text('Dough ${o.text('temperature')} °C'), if (o.text('rise').isNotEmpty) Text('Rise ${o.text('rise')}%'), Text(o.text('texture')), if(o.fields['photo'] is Map) _LocalPhotoView(metadata: Map<String,dynamic>.from(o.fields['photo'] as Map), label: 'Your saved dough observation photo'), if(o.fields['photo'] is Map) TextButton(onPressed:()=>_removeObservationPhoto(context,widget.store,o),child:const Text('Remove this private photo'))]),
       if (b.text('state') == 'complete') FilledButton(onPressed: () => _finish(b), child: const Text('Add outcome / next-time note')),
-      if (b.text('state') == 'complete') FilledButton(onPressed: () async {final recipe = {...b.fields, 'title': b.text('name')}; await _run(context, () async {final again = await widget.store.createBake(recipe); if (context.mounted) _open(context, BakeDetail(store: widget.store, id: again.id));});}, child: const Text('Bake again from this formula')),
+      if (b.text('state') == 'complete') FilledButton(onPressed: () async {final pinned = b.fields['recipeSnapshot']; if (pinned is! Map) {ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This bake has no pinned recipe snapshot. Export it and review a private formula first.'))); return;} final recipe = Map<String,dynamic>.from(pinned); await _run(context, () async {final again = await widget.store.createBake(recipe, scale:b.number('scale',1).toDouble()); if (context.mounted) _open(context, BakeDetail(store: widget.store, id: again.id));});}, child: const Text('Bake again from this formula')),
       TextButton(onPressed: () => _open(context, TextExport(title: 'Bake record', text: const JsonEncoder.withIndent('  ').convert(b.fields))), child: const Text('Export this bake')),
     ]));
   });
@@ -706,4 +703,94 @@ class TextExport extends StatelessWidget {
     const SizedBox(height: 20),
     SelectableText(text, style: Theme.of(context).textTheme.bodySmall),
   ]));
+}
+
+class ObservationCaptureScreen extends StatefulWidget {
+  const ObservationCaptureScreen({super.key, required this.store, required this.objectId, required this.starter, this.media});
+  final AppStore store;
+  final String objectId;
+  final bool starter;
+  final LocalMediaService? media;
+  @override State<ObservationCaptureScreen> createState() => _ObservationCaptureScreenState();
+}
+class _ObservationCaptureScreenState extends State<ObservationCaptureScreen> {
+  late final media = widget.media ?? LocalMediaService();
+  final formKey = GlobalKey<FormState>();
+  final temperature = TextEditingController(), height = TextEditingController(), baseline = TextEditingController(), rise = TextEditingController(), notes = TextEditingController();
+  String peak = 'unknown', error = '';
+  LocalPhoto? photo;
+  bool busy = false, saved = false;
+  Future<void> pick(bool camera) async {
+    if (busy) return;
+    setState(() {busy = true; error = '';});
+    try {
+      final selected = await media.pickPhoto(camera: camera);
+      if (!mounted) {if(selected != null) await media.delete(selected); return;}
+      if (selected != null) {
+        final previous = photo;
+        setState(() => photo = selected);
+        if (previous != null) {try {await media.delete(previous);} catch(e) {if(mounted)setState(()=>error='New photo attached. The previous unsaved file could not be cleaned up: $e');}}
+      }
+    } catch (e) {if(mounted)setState(() => error = 'Photo was not attached: $e. Your entered observations are still here.');}
+    finally {if(mounted)setState(() => busy = false);}
+  }
+  Future<void> save() async {
+    if(busy || !formKey.currentState!.validate()) return;
+    if(temperature.text.trim().isEmpty && height.text.trim().isEmpty && rise.text.trim().isEmpty && notes.text.trim().isEmpty && photo == null && peak == 'unknown') {
+      setState(() => error = 'Record at least one observation or attach a photo. Unknown values can stay empty.');return;
+    }
+    setState(() {busy=true;error='';});
+    try {
+      final metadata=photo?.toJson();
+      await widget.store.save('observation',{'objectId':widget.objectId,'temperature':temperature.text.trim(),if(widget.starter)'height':height.text.trim(),if(widget.starter)'baseline':baseline.text.trim(),if(!widget.starter)'rise':rise.text.trim(),if(widget.starter)'peak':peak,widget.starter?'note':'texture':notes.text.trim(),'occurredAt':DateTime.now().toUtc().toIso8601String(),if(metadata!=null)'photo':metadata,if(photo!=null)'photoId':photo!.id});
+      saved=true;
+      if(mounted)Navigator.pop(context);
+    }catch(e){if(mounted)setState(()=>error='Could not save: $e. The observation draft is still here.');}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  @override void dispose(){
+    for(final c in [temperature,height,baseline,rise,notes]){c.dispose();}
+    if(!saved && photo!=null)unawaited(media.delete(photo!).catchError((Object _) {}));
+    super.dispose();
+  }
+  Widget numberField(TextEditingController controller,String label,{bool positive=false}) => Padding(padding:const EdgeInsets.only(bottom:16),child:TextFormField(controller:controller,decoration:InputDecoration(labelText:label),keyboardType:const TextInputType.numberWithOptions(decimal:true,signed:true),validator:(v){if(v==null||v.trim().isEmpty)return null;final number=double.tryParse(v);if(number==null||!number.isFinite)return 'Enter a finite number or leave unknown.';if(positive&&number<=0)return 'A measured height must be greater than zero.';if(controller==rise&&number<0)return 'Rise cannot be negative; describe falling dough in your note.';return null;}));
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(widget.starter?'Record starter observation':'Record dough observation')),body:Form(key:formKey,child:_Page(children:[
+    const _Notice('Log what you can see. Time and photos cannot certify readiness or food safety. Unknown measurements stay empty.'),
+    numberField(temperature,'Temperature (°C, optional)'),
+    if(widget.starter)...[numberField(height,'Measured height (mm, optional)',positive:true),numberField(baseline,'Starting height (mm, optional)',positive:true),DropdownButtonFormField<String>(initialValue:peak,decoration:const InputDecoration(labelText:'Peak observation'),items:const [DropdownMenuItem(value:'unknown',child:Text('Peak not observed / unknown')),DropdownMenuItem(value:'not_yet',child:Text('Not yet peaked')),DropdownMenuItem(value:'observed',child:Text('I observed the peak')),DropdownMenuItem(value:'falling',child:Text('Falling after rise'))],onChanged:busy?null:(v)=>setState(()=>peak=v??'unknown')),const SizedBox(height:16)]else numberField(rise,'Measured rise (%, optional)'),
+    TextFormField(controller:notes,decoration:const InputDecoration(labelText:'What can you see or feel? (optional)'),minLines:3,maxLines:7),
+    const _Section('Optional private photo'),
+    const Text('Only your explicit camera or library choice opens the picker. A resized copy is kept locally with photo metadata removed. It is not uploaded for analysis or sharing.'),
+    const SizedBox(height:12),
+    Wrap(spacing:8,runSpacing:8,children:[OutlinedButton.icon(onPressed:busy?null:()=>pick(true),icon:const Icon(Icons.camera_alt_outlined),label:const Text('Take a photo')),OutlinedButton.icon(onPressed:busy?null:()=>pick(false),icon:const Icon(Icons.photo_library_outlined),label:const Text('Choose a photo'))]),
+    if(photo!=null)...[_LocalPhotoView(metadata:photo!.toJson(),label:'Private observation photo selected for this record'),TextButton(onPressed:busy?null:()async{final previous=photo;if(previous==null)return;setState(()=>busy=true);try{await media.delete(previous);if(mounted)setState(()=>photo=null);}catch(e){if(mounted)setState(()=>error='The attachment could not be removed: $e');}finally{if(mounted)setState(()=>busy=false);}},child:const Text('Remove this attachment'))],
+    if(error.isNotEmpty)Semantics(liveRegion:true,child:_Notice(error,icon:Icons.error_outline)),
+    if(busy)const LinearProgressIndicator(),
+    const SizedBox(height:16),FilledButton(onPressed:busy?null:save,child:const Text('Save actual observation')),
+  ])));
+}
+class _LocalPhotoView extends StatelessWidget {
+  const _LocalPhotoView({required this.metadata,required this.label});
+  final Map<String,dynamic> metadata;
+  final String label;
+  @override Widget build(BuildContext context){
+    final Future<File> file;
+    try{file=LocalMediaService().resolve(LocalPhoto.fromJson(metadata));}
+    catch(_){return const _Notice('This saved photo reference could not be read. The observation text remains available.');}
+    return Padding(padding:const EdgeInsets.symmetric(vertical:12),child:FutureBuilder<File>(future:file,builder:(context,snapshot){
+      if(snapshot.hasError)return const _Notice('The local photo is unavailable. The observation text remains saved.');
+      if(!snapshot.hasData)return const SizedBox(height:48,child:Center(child:CircularProgressIndicator()));
+      return ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.file(snapshot.data!,height:260,width:double.infinity,fit:BoxFit.contain,semanticLabel:label,errorBuilder:(_,error,stack)=>const _Notice('The photo could not be displayed. Your text record is still available.')));
+    }));
+  }
+}
+
+Future<void> _removeObservationPhoto(BuildContext context,AppStore store,AppRecord observation)async{
+  final yes=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Remove this private photo?'),content:const Text('The observation measurements and notes stay saved. This removes the local attachment; exported copies cannot be recalled.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Keep photo')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Remove photo'))]));
+  if(yes!=true||!context.mounted)return;
+  final metadata=observation.fields['photo'];if(metadata is! Map)return;
+  final fields=Map<String,dynamic>.from(observation.fields)..remove('photo')..remove('photoId');
+  try{await store.save(observation.kind,fields,id:observation.id);}catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Photo was not removed: $e')));return;}
+  try{await LocalMediaService().delete(LocalPhoto.fromJson(Map<String,dynamic>.from(metadata)));if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Local photo removed. Observation text retained.')));}
+  catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Attachment removed from the record, but local file cleanup needs attention: $e')));}
 }

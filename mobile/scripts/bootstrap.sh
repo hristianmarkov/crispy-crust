@@ -21,4 +21,7 @@ if [ ! -f "$app_root/.metadata" ]; then
 fi
 python3 "$mobile_root/scripts/configure_platforms.py"
 cp "$mobile_root/content/catalogue.json" "$app_root/assets/catalogue.json"
+if [ "$(uname -s)" = "Darwin" ]; then
+  ruby "$mobile_root/scripts/embed_apple_targets.rb"
+fi
 echo 'Native runners generated without replacing application code or pubspec.'

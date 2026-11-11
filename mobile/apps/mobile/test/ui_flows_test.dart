@@ -6,6 +6,7 @@ import 'package:crispy_crust/data/local_database.dart';
 import 'package:crispy_crust/data/local_store.dart';
 import 'package:crispy_crust/main.dart' show buildTheme;
 import 'package:crispy_crust/screens/main_screen.dart';
+import 'package:crispy_crust/platform/local_media.dart';
 
 void main() {
   late LocalDatabase db;
@@ -24,7 +25,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(theme: buildTheme(false), builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)), child: child!), home: screen ?? MainScreen(store: store)));
     await tester.pumpAndSettle();
   }
-  Finder field(String label) => find.byWidgetPredicate((w) => w is TextFormField && w.decoration?.labelText == label);
+  Finder field(String label) => find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == label);
 
   testWidgets('fresh local kitchen shows value without forced account and five navigation tabs', (tester) async {
     await mount(tester);
@@ -94,4 +95,47 @@ void main() {
     expect(find.text('Subscribe'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('manual observation needs no camera permission and keeps unknown photo empty', (tester) async {
+    final starter = await store.save('starter', {'name':'Manual jar','hydration':100,'flour':'Bread flour','storage':'counter'});
+    await mount(tester, screen: StarterDetail(store:store,id:starter.id));
+    await tester.tap(find.text('Record rise or temperature'));
+    await tester.pumpAndSettle();
+    await tester.enterText(field('Temperature (°C, optional)'), '23');
+    await tester.scrollUntilVisible(find.text('Save actual observation'), 250);
+    await tester.tap(find.text('Save actual observation'));
+    await tester.pumpAndSettle();
+    expect(store.records('observation'),hasLength(1));
+    expect(store.records('observation').single.text('temperature'),'23');
+    expect(store.records('observation').single.fields.containsKey('photo'),isFalse);
+    expect(tester.takeException(),isNull);
+  });
+
+  testWidgets('cancelling photo picker preserves typed observation notes and sends nothing', (tester) async {
+    var pickerCalls=0;
+    final media=LocalMediaService(picker:(camera)async{pickerCalls++;return null;});
+    await mount(tester,screen:ObservationCaptureScreen(store:store,objectId:'local-starter',starter:true,media:media));
+    final noteField=field('What can you see or feel? (optional)');
+    await tester.ensureVisible(noteField);
+    await tester.enterText(noteField,'Bubbly; peak not observed');
+    await tester.scrollUntilVisible(find.text('Choose a photo'),200);
+    await tester.tap(find.text('Choose a photo'));await tester.pumpAndSettle();
+    expect(pickerCalls,1);
+    expect(tester.widget<TextField>(noteField).controller!.text,'Bubbly; peak not observed');
+    expect(store.records('observation'),isEmpty);
+    expect(find.text('Remove this attachment'),findsNothing);
+    expect(tester.takeException(),isNull);
+  });
+  testWidgets('photo permission failure preserves observation draft with a clear error', (tester) async {
+    final media=LocalMediaService(picker:(camera)async{throw const LocalMediaFailure('PERMISSION_DENIED');});
+    await mount(tester,screen:ObservationCaptureScreen(store:store,objectId:'local-bake',starter:false,media:media));
+    final noteField=field('What can you see or feel? (optional)');
+    await tester.enterText(noteField,'Dough still feels dense');
+    await tester.scrollUntilVisible(find.text('Take a photo'),200);
+    await tester.tap(find.text('Take a photo'));await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(noteField).controller!.text,'Dough still feels dense');
+    expect(find.textContaining('Photo was not attached:'),findsOneWidget);
+    expect(store.records('observation'),isEmpty);
+    expect(tester.takeException(),isNull);
+  });
+
 }

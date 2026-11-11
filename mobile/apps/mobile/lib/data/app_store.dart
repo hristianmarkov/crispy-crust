@@ -8,11 +8,12 @@ dynamic freezeJson(dynamic value) {
 
 
 class AppRecord {
-  AppRecord({required this.id, required this.kind, required Map<String,dynamic> fields, required this.updatedAt}):fields=freezeJson(fields) as Map<String,dynamic>;
+  AppRecord({required this.id, required this.kind, required Map<String,dynamic> fields, required this.updatedAt, this.revision=1}):fields=freezeJson(fields) as Map<String,dynamic>;
   final String id;
   final String kind;
   final Map<String, dynamic> fields;
   final DateTime updatedAt;
+  final int revision;
   String text(String key, [String fallback = '']) => fields[key]?.toString() ?? fallback;
   num number(String key, [num fallback = 0]) => fields[key] is num ? fields[key] as num : num.tryParse(text(key)) ?? fallback;
   bool flag(String key) => fields[key] == true;

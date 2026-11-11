@@ -291,3 +291,90 @@ test("worker records provider failures and explicitly blocks unconfigured deleti
   assert.equal(finished[1].error, "DELETION_PROCESSOR_NOT_CONFIGURED");
   assert.equal(finished[0].retry, false);
 });
+
+test("account deletion processor deletes objects before app state then Auth and safely retries", async () => {
+  const { deleteAccount, RestServiceStore } =
+    await import("../functions/app-api/deletion.ts");
+  const order: string[] = [];
+  const service = {
+    rpc: async (name: string) => {
+      order.push(name);
+      return name === "cc_worker_deletion_keys"
+        ? ["a.jpg", "b.jpg"]
+        : { purged: true };
+    },
+    removeObjects: async (keys: string[]) => {
+      order.push("objects:" + keys.length);
+    },
+    removeAuthUser: async (id: string) => {
+      assert.equal(id, U);
+      order.push("auth");
+    },
+  };
+  const job = {
+    id: U,
+    user_id: U,
+    lease_token: U,
+    kind: "delete_account",
+    input: {},
+  };
+  assert.equal((await deleteAccount(job, service)).auth_deleted, true);
+  assert.deepEqual(order, [
+    "cc_worker_deletion_keys",
+    "objects:2",
+    "cc_worker_delete_data",
+    "auth",
+  ]);
+  const requests: any[] = [];
+  const rest = new RestServiceStore(
+    "https://backend.test",
+    "server-secret",
+    async (url, init) => {
+      requests.push({ url, init });
+      return new Response(null, { status: 204 });
+    },
+  );
+  await rest.removeObjects(["a.jpg"]);
+  await rest.removeAuthUser(U);
+  assert.equal(requests.length, 2);
+  assert.ok(requests[0].url.endsWith("/storage/v1/object/kitchen-media"));
+});
+test("community and staff endpoints route to commands, preserving pending moderation", async () => {
+  assert.equal(
+    (
+      await router(
+        request("/community/posts", { share_id: U, title: "My bread" }),
+      )
+    ).status,
+    201,
+  );
+  assert.equal(calls.at(-1)?.name, "cc_publish_post");
+  assert.equal(
+    (
+      await router(
+        request("/staff/moderate", {
+          target_type: "post",
+          target_id: U,
+          action: "publish",
+          reason: "Reviewed",
+        }),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(calls.at(-1)?.name, "cc_moderate");
+  assert.equal(
+    (
+      await router(
+        request("/shares", {
+          kitchen_id: U,
+          source_id: U,
+          selected_fields: ["title"],
+          expected_source_revision: 1,
+        }),
+      )
+    ).status,
+    201,
+  );
+  assert.equal(calls.at(-1)?.params.p_expected_revision, 1);
+});

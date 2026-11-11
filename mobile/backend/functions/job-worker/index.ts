@@ -1,3 +1,6 @@
+import { RestMediaService } from "../app-api/media.ts";
+import { RestBackend } from "../app-api/router.ts";
+import { RestServiceStore } from "../app-api/deletion.ts";
 import { runJobs, type Job } from "../app-api/jobs.ts";
 const env = (n: string) => Deno.env.get(n) ?? "";
 const url = env("SUPABASE_URL");
@@ -36,6 +39,20 @@ Deno.serve(async (request) => {
     },
     {
       apiKey: env("OPENAI_API_KEY"),
+      service: new RestServiceStore(url, key),
+      media: new RestMediaService(
+        new RestBackend(url, env("SUPABASE_ANON_KEY")),
+        new RestServiceStore(url, key),
+        url,
+        key,
+      ),
+      enabledKinds: [
+        "delete_account",
+        "export",
+        ...(env("AI_JOBS_ENABLED") === "true" ? ["coach"] : []),
+        ...(env("IMPORT_JOBS_ENABLED") === "true" ? ["import"] : []),
+        ...(env("IMAGE_JOBS_ENABLED") === "true" ? ["image"] : []),
+      ],
       model: env("COACH_MODEL"),
       allowedImportHosts: env("IMPORT_ALLOWED_HOSTS")
         .split(",")

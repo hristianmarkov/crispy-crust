@@ -49,6 +49,7 @@ or timing values. All recipe/lesson prose here is newly authored rather than
 copied from the source articles. References were inspected 11 November 2026:
 
 - [King Arthur Baking: create a sourdough starter](https://www.kingarthurbaking.com/learn/guides/sourdough/create)
+- [FDA: handling raw flour safely](https://www.fda.gov/food/buy-store-serve-safe-food/handling-flour-safely-what-you-need-know)
 - [FDA: safe food handling](https://www.fda.gov/food/buy-store-serve-safe-food/safe-food-handling)
 - [King Arthur Baking: hydration definitions](https://www.kingarthurbaking.com/blog/2023/01/11/bread-hydration)
 

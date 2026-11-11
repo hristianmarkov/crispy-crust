@@ -7,3 +7,4 @@ export 'src/bake.dart';
 export 'src/starter.dart';
 
 export 'src/comparison.dart';
+export 'src/production.dart';

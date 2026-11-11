@@ -13,6 +13,9 @@ final class KitchenConnection: NSObject, ObservableObject, WCSessionDelegate {
     if let json = session.receivedApplicationContext["snapshot"] as? String { receive(json) }
   }
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    if applicationContext["clear"] as? Bool == true {
+      DispatchQueue.main.async { self.task = nil; self.message = "Open a bake on your phone." }; return
+    }
     if let json = applicationContext["snapshot"] as? String { receive(json) }
   }
   private func receive(_ json: String) {
