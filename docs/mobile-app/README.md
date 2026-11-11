@@ -1,9 +1,14 @@
-# Crispy Crust build handoff
+# Crispy Crust mobile documentation
 
-Start with [CRISPY_CRUST_BUILD_PLAN.md](CRISPY_CRUST_BUILD_PLAN.md). It contains the complete single-launch specification: feature coverage, engineering, database/API/domain contracts, UX scenarios/routes, competitor research, brand system, access/dependencies, budgets and acceptance gates.
+Read these together:
 
-- `brand-assets/`: new vector logo, icon, six-screen blueprint, semantic colour/type tokens and licensed fonts.
-- `SOURCE_PRODUCT_VISION.md`: original supplied vision, preserved separately from proposals.
-- `requirements-traceability.csv`: feature ledger template for the implementation agent; implementation is not claimed complete.
+1. [Original complete build plan](CRISPY_CRUST_BUILD_PLAN.md) — intended full product, architecture, UX, brand, research and acceptance contracts.
+2. [Implementation handover and remaining build plan](CRISPY_CRUST_MOBILE_IMPLEMENTATION_HANDOVER.md) — actual implementation, verification, live backend, local setup, exact limitations and continuation work orders.
+3. [Owner setup](../../mobile/OWNER_SETUP.md) — required Auth, store, provider, legal and operational configuration.
+4. [Current implementation ledger](../../mobile/IMPLEMENTATION_STATUS.md) — F01–F36 source and acceptance coverage.
 
-Give the next agent the entire ZIP or this folder, not just an isolated screenshot. The app has not been implemented by this planning task. Mockup values are illustrative. Owner decisions and content/hardware/operations validation gates are explicit in the main specification.
+The implementation is on `feat/flutter-mobile-app`, [draft PR #3](https://github.com/hristianmarkov/crispy-crust/pull/3), not main. Clone the entire repository and check out that branch for local continuation. Historical ZIPs contain planning exports, not the current app source.
+
+`brand-assets/` contains logos, icons, screen references, semantic tokens and font licenses. `SOURCE_PRODUCT_VISION.md` preserves the original vision. `requirements-traceability.csv` is the original feature-ledger template.
+
+The app has substantial implemented source and passing checks, but the full product and release acceptance remain unfinished. See the handover before making infrastructure changes or claiming launch readiness.

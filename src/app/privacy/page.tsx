@@ -1,69 +1,26 @@
 import type { Metadata } from "next";
-import { RemoveEmail } from "@/components/remove-email";
 export const metadata: Metadata = {
   title: "Privacy, please",
-  description:
-    "How the Crispy Crust early-access website handles your email address and platform preference.",
+  description: "Privacy information for the Crispy Crust marketing website and its retired early-access form.",
   alternates: { canonical: "/privacy" },
-  openGraph: {
-    title: "Crispy Crust Privacy",
-    description: "Early-access data, privacy-friendly analytics and email removal.",
-    url: "/privacy",
-    images: ["/images/social-card.jpg"],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Crispy Crust Privacy",
-    description: "Early-access data, analytics and email removal.",
-  },
+  openGraph: { title: "Crispy Crust Privacy", description: "Marketing website privacy and historical early-access data.", url: "/privacy", images: ["/images/social-card.jpg"] },
+  twitter: { card: "summary_large_image", title: "Crispy Crust Privacy", description: "Marketing website privacy and historical early-access data." },
 };
 export default function Privacy() {
-  return (
-    <main id="main" className="article-page privacy-page">
-      <span className="eyebrow">YOUR DETAILS BELONG TO YOU</span>
-      <h1>Privacy, please.</h1>
-      <p>
-        This notice covers the early-access website for Crispy Crust. The
-        mobile app is in development; its own privacy information will be
-        provided before launch.
-      </p>
-      <h2>What the early-access form collects</h2>
-      <p>
-        If you join the list, we store your email address, preferred phone
-        platform, the time of your signup, and a record that you asked for
-        launch updates. We use these details to manage launch interest and send
-        launch news when it’s available.
-      </p>
-      <h2>A small amount of data, for a clear reason</h2>
-      <p>
-        Signing up is optional. Your details are stored privately in a Supabase database,
-        not published or sold. The form does not add your address to a
-        third-party email service. The site does not set analytics or
-        advertising cookies. Hosting infrastructure may process technical
-        request logs to operate and secure the website. A daily keyed hash of your network address is used for short-lived signup rate limits; the raw address is not stored in the waitlist database.
-      </p>
-      <h2>Changed your mind?</h2>
-      <p>
-        We use Vercel Web Analytics to count page visits and events such as calculator
-        use, printable downloads and successful signups. Analytics receives page
-        paths and tool names, never your email address or calculator entries. We
-        strip query strings and respect Do Not Track and Global Privacy Control.
-        This analytics service does not use cookies. See{" "}
-        <a href="https://vercel.com/docs/analytics/privacy-policy">Vercel’s analytics privacy information</a>.
-      </p>
-      <p>
-        Use this form to remove an email address from the early-access list. For
-        privacy, the response is the same whether an address was on the list or
-        not.
-      </p>
-      <RemoveEmail />
-      <h2>About the app previews</h2>
-      <p>
-        The example starter, bake details, and journal notes shown on this site
-        are illustrative design concepts. They are not real user records or
-        testimonials. App features, platform availability, and screens may
-        change before release.
-      </p>
-    </main>
-  );
+  return <main id="main" className="article-page privacy-page">
+    <span className="eyebrow">YOUR DETAILS BELONG TO YOU</span>
+    <h1>Privacy, please.</h1>
+    <p>This notice covers the Crispy Crust marketing website. The mobile app is in development; its own privacy information will be provided before launch.</p>
+    <h2>A marketing website</h2>
+    <p>This website provides product information, illustrative previews and baking articles. It does not create app accounts, save baking records, run a planner, process purchases or accept new early-access signups. Worked examples are static educational content.</p>
+    <h2>Historical early-access information</h2>
+    <p>An earlier version offered an optional launch-interest form that collected an email address, phone-platform preference and signup time. That form and its website submission and removal endpoints have been retired. Retiring the form does not itself delete previously collected records or unsubscribe an address.</p>
+    <p>Historical records remain subject to the purpose and privacy commitments under which they were collected. They must not be converted into app accounts or treated as consent to app analytics. This website does not claim that all historical records have been deleted.</p>
+    <h2>Requests about historical records</h2>
+    <p>The former automated removal form is no longer available. Until a verified privacy/support contact is published, this page cannot accept or confirm an individual removal request. No unverified email address or false removal confirmation is presented here.</p>
+    <h2>Website analytics and infrastructure</h2>
+    <p>Vercel Web Analytics may count page visits, guide views and static printable downloads when enabled for the site. Events contain page paths and controlled content identifiers, not email addresses or baking entries. Query strings are stripped, and the integration respects Do Not Track and Global Privacy Control. It does not use advertising cookies. Hosting infrastructure may process technical request logs to operate and secure the website. See <a href="https://vercel.com/docs/analytics/privacy-policy">Vercel’s analytics privacy information</a>.</p>
+    <h2>About the app previews</h2>
+    <p>Example starters, bake details and journal notes are illustrative design concepts, not real user records, testimonials or validated recipe outcomes. App features, platform availability and screens may change before release.</p>
+  </main>;
 }

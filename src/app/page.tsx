@@ -18,7 +18,7 @@ import { Phone } from "@/components/phone";
 import {
   AppShowcase,
   Faq,
-  WaitlistButton,
+  AppStatusLink,
 } from "@/components/site-interactions";
 import { LaunchSection } from "@/components/footer";
 import { guides } from "@/data/guides";
@@ -80,9 +80,9 @@ export default function Home() {
             your day.
           </p>
           <div className="hero-actions">
-            <WaitlistButton>
-              Join the early birds <ArrowUpRight size={18} />
-            </WaitlistButton>
+            <AppStatusLink>
+              App in development <ArrowUpRight size={18} />
+            </AppStatusLink>
             <Link className="hero-secondary" href="#features">
               <span className="play-circle">
                 <Play size={12} fill="currentColor" />
@@ -339,12 +339,12 @@ export default function Home() {
         </div>
         <div className="home-tools-links">
           <h3>A little help for today’s bake.</h3>
-          <p>Free tools, ready to use while the app is in the making.</p>
-          <Link href="/tools/starter-feeding-calculator">Starter feeding calculator</Link>
-          <Link href="/tools/sourdough-schedule-calculator">Plan a baking schedule</Link>
-          <Link href="/tools/sourdough-hydration-calculator">Calculate dough hydration</Link>
-          <Link href="/tools/sourdough-rise-calculator">Measure dough rise</Link>
-          <Link href="/tools/discard-recipe-finder">Find a discard recipe</Link>
+          <p>Static formulas and worked examples while the app is in development.</p>
+          <Link href="/tools/starter-feeding-calculator">Feeding-ratio example</Link>
+          <Link href="/tools/sourdough-schedule-calculator">Read a schedule example</Link>
+          <Link href="/tools/sourdough-hydration-calculator">Understand dough hydration</Link>
+          <Link href="/tools/sourdough-rise-calculator">Understand dough rise</Link>
+          <Link href="/tools/discard-recipe-finder">Read discard quantity examples</Link>
         </div>
       </section>
       <Faq />

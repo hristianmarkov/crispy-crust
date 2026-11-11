@@ -24,24 +24,15 @@ export function Header() {
             The Baker’s Journal <span className="nav-new">READ</span>
           </Link>
           <Link href="/tools" onClick={close}>
-            Baking tools
+            Baking explainers
           </Link>
-          <button
-            className="button button-small nav-mobile-cta"
-            onClick={() => {
-              close();
-              window.dispatchEvent(new Event("open-waitlist"));
-            }}
-          >
-            Join the early birds <ArrowUpRight size={15} />
-          </button>
+          <Link href="/#app-status" className="button button-small nav-mobile-cta" onClick={close}>
+            App in development <ArrowUpRight size={15} />
+          </Link>
         </nav>
-        <button
-          className="button button-small desktop-cta"
-          onClick={() => window.dispatchEvent(new Event("open-waitlist"))}
-        >
-          Join the early birds <ArrowUpRight size={15} />
-        </button>
+        <Link href="/#app-status" className="button button-small desktop-cta">
+          App in development <ArrowUpRight size={15} />
+        </Link>
         <button
           className="menu-button"
           aria-label={open ? "Close navigation" : "Open navigation"}

@@ -1,0 +1,173 @@
+name: Mobile verification
+on:
+  pull_request:
+    paths: ['mobile/**', '.github/workflows/mobile.yml']
+  push:
+    branches: [main]
+    paths: ['mobile/**', '.github/workflows/mobile.yml']
+  workflow_dispatch:
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  cancel-superseded:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Stop obsolete checks on this branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/mobile.yml/runs" \
+            -f branch="$HEAD_BRANCH" -f status=in_progress -f per_page=50 \
+            --jq '.workflow_runs[] | select(.id < (env.GITHUB_RUN_ID | tonumber)) | .id' |
+          while read -r run_id; do
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel"
+          done
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: mobile/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Hosted API privacy smoke test
+        run: node scripts/smoke-hosted.mjs
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Generate missing native runners
+        run: bash mobile/scripts/bootstrap.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-native-runners
+          path: |
+            mobile/apps/mobile/android
+            mobile/apps/mobile/ios
+            mobile/apps/mobile/linux
+            mobile/apps/mobile/.metadata
+      - name: Domain tests
+        working-directory: mobile/packages/baking_domain
+        run: dart pub get && dart test
+      - name: Content validation
+        working-directory: mobile/packages/content_models
+        run: dart pub get && dart test
+      - name: App dependencies and analysis
+        working-directory: mobile/apps/mobile
+        run: flutter pub get && dart run flutter_launcher_icons && flutter analyze --no-fatal-infos
+      - name: Log public dependency lockfiles
+        if: always()
+        run: |
+          python3 - <<'PYLOCK'
+          from pathlib import Path
+          import json
+          mobile = Path('mobile')
+          for relative in ('apps/mobile/pubspec.lock', 'packages/baking_domain/pubspec.lock', 'packages/content_models/pubspec.lock'):
+              path = mobile / relative
+              if path.is_file():
+                  print('CC_LOCKFILE_JSON ' + json.dumps({'path': relative, 'content': path.read_text()}, separators=(',', ':')))
+          PYLOCK
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-lockfiles
+          path: |
+            mobile/apps/mobile/pubspec.lock
+            mobile/packages/baking_domain/pubspec.lock
+            mobile/packages/content_models/pubspec.lock
+      - name: App and persistence tests
+        working-directory: mobile/apps/mobile
+        run: flutter test --concurrency=1 --timeout=60s --reporter=expanded
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flutter-screen-captures
+          path: mobile/apps/mobile/build/screenshots/*.png
+          if-no-files-found: ignore
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Generate missing native runners
+        run: bash mobile/scripts/bootstrap.sh
+      - name: Android dependencies and icons
+        working-directory: mobile/apps/mobile
+        run: flutter pub get && dart run flutter_launcher_icons
+      - name: Android debug build
+        working-directory: mobile/apps/mobile
+        run: flutter build apk --debug --dart-define-from-file=../../config/development.json
+      - name: Wear OS debug build
+        working-directory: mobile/apps/mobile/android
+        run: ./gradlew :wear:assembleDebug
+      - name: Verify phone and watch package/signing identity
+        run: python3 mobile/scripts/verify_android_identity.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wearos-debug
+          path: mobile/apps/mobile/build/wear/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug
+          path: mobile/apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install pinned CocoaPods and project editor
+        run: gem install cocoapods -v 1.16.2 --no-document && gem install xcodeproj -v 1.27.0 --no-document
+      - name: Verify companion phase ordering
+        run: ruby mobile/scripts/test_apple_phase_order.rb
+      - name: Generate missing native runners
+        run: bash mobile/scripts/bootstrap.sh
+      - name: Compile iOS without signing
+        working-directory: mobile/apps/mobile
+        run: flutter pub get && dart run flutter_launcher_icons && flutter build ios --debug --no-codesign --dart-define-from-file=../../config/development.json
+      - name: Native companion model tests
+        working-directory: mobile/native/apple
+        run: swift test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned
+          path: mobile/apps/mobile/build/ios/iphoneos/Runner.app
+          if-no-files-found: error

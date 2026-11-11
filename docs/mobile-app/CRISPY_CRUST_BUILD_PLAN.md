@@ -65,6 +65,14 @@ The release contract and resolution rules in this front section take precedence 
 - **Numbers in mockups:** time windows, sample records and reviewed-version labels on the screen board are illustrative fixtures. Domain/content test evidence, not artwork, determines production values.
 - **Scope:** the 24-recipe commission, all F01–F36 capabilities, native companion surfaces and restricted operations tools belong to the same launch. Unsupported device models have a truthful compatibility/manual fallback, not a nonworking promise.
 
+### 1.5 Execution decision — approved shared Supabase project
+
+**11 November 2026, during implementation:** the owner first selected the **Multiple ones** account and **Markov** organisation for the app backend. A separate app project could not be created within that organisation's free-project quota. The owner then explicitly instructed: “use the same db as the website — the website has just 1 table for the waiting list.”
+
+This instruction overrides this document's separate-project recommendation **for the current approved implementation environment**. Use the existing CrispyCrust project `wpxeuwknbuxbtkkkmcsm`, with app objects namespaced under `cc_` and `app_private`; preserve the legacy waitlist tables/data and `crumb-clock-waitlist` function. The Flutter app uses its own authenticated API and data contracts. It must not depend on the marketing website's routes or deployment. Shared infrastructure requires extra care: migrations, policies, Auth settings, storage and scheduled jobs must be reviewed for effects on the existing service. App namespacing does not create the isolation of separate projects.
+
+This is an infrastructure exception only. The marketing-only website boundary, all F01–F36 capabilities, proposed local/free versus service-tier boundaries, unapproved commercial decisions and single full-launch acceptance contract remain in force. Read [the live implementation ledger](../../mobile/IMPLEMENTATION_STATUS.md) and backend deployment records for actual progress and unresolved gates; this specification is not deployment evidence.
+
 ## 2. Product promise and critical assessment
 
 **Promise:** “Good bread. On your time.” Help a baker maintain a starter, find a workable schedule, carry out the bake, recover when reality changes, and repeat a loaf with the same recorded conditions.

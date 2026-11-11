@@ -1,183 +1,15 @@
 "use client";
-import { recordEvent } from "@/lib/analytics";
-import { FormEvent, useEffect, useRef, useState } from "react";
-import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  Clock3,
-  Leaf,
-  Play,
-  Wheat,
-  X,
-} from "lucide-react";
+import { useState } from "react";
+import { ArrowUpRight, CheckCircle2, ChevronDown, Wheat } from "lucide-react";
 import { Phone, type Screen } from "./phone";
-import { LogoMark } from "./brand";
 import { faqs } from "@/data/faqs";
 
-export function WaitlistButton({
-  children,
-  className = "button",
-}: {
-  children: React.ReactNode;
-  className?: string;
+export function AppStatusLink({ children, className = "button" }: {
+  children: React.ReactNode; className?: string;
 }) {
-  return (
-    <button
-      className={className}
-      onClick={() => window.dispatchEvent(new Event("open-waitlist"))}
-    >
-      {children}
-    </button>
-  );
+  return <a className={className} href="/#app-status">{children}</a>;
 }
-export function WaitlistDialog() {
-  const ref = useRef<HTMLDialogElement>(null);
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
-  const [error, setError] = useState("");
-  useEffect(() => {
-    const open = () => {
-      ref.current?.showModal();
-      recordEvent("waitlist_open");
-    };
-    window.addEventListener("open-waitlist", open);
-    return () => window.removeEventListener("open-waitlist", open);
-  }, []);
-  useEffect(() => {
-    if (status === "success")
-      ref.current?.querySelector<HTMLElement>("#waitlist-title")?.focus();
-  }, [status]);
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setStatus("loading");
-    const form = new FormData(e.currentTarget);
-    try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: form.get("email"),
-          platform: form.get("platform"),
-          website: form.get("website"),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(
-          data.error || "Something went wrong. Please try again.",
-        );
-      setStatus("success");
-      recordEvent("waitlist_signup_success");
-    } catch (err) {
-      setStatus("error");
-      setError(err instanceof Error ? err.message : "Please try again.");
-    }
-  }
-  return (
-    <dialog
-      ref={ref}
-      className="waitlist-dialog"
-      aria-labelledby="waitlist-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) ref.current?.close();
-      }}
-    >
-      <button
-        className="dialog-close"
-        aria-label="Close early access form"
-        onClick={() => ref.current?.close()}
-      >
-        <X size={21} />
-      </button>
-      {status === "success" ? (
-        <div className="signup-success" role="status">
-          <div className="success-mark">
-            <Check size={30} />
-          </div>
-          <span className="eyebrow">GOOD THINGS TAKE A LITTLE TIME</span>
-          <h2 id="waitlist-title" tabIndex={-1}>
-            You’re on the list.
-          </h2>
-          <p>
-            There’s a little more good bread in your future. Your interest is
-            registered — we’ll be in touch when there’s launch news.
-          </p>
-          <button className="button" onClick={() => ref.current?.close()}>
-            Back to the good stuff <ArrowRight size={16} />
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="dialog-logo">
-            <LogoMark />
-          </div>
-          <span className="eyebrow">A LITTLE SOMETHING IS RISING</span>
-          <h2 id="waitlist-title">
-            First in line.
-            <br />
-            Fresh from the oven.
-          </h2>
-          <p>
-            Join the early birds for Crispy Crust launch news. A calmer kind of
-            baking is on its way.
-          </p>
-          <form onSubmit={submit}>
-            <label htmlFor="signup-email">Your email address</label>
-            <input
-              id="signup-email"
-              name="email"
-              type="email"
-              placeholder="you@yourkitchen.com"
-              required
-              maxLength={254}
-              autoComplete="email"
-            />
-            <label htmlFor="signup-platform">What’s in your pocket?</label>
-            <select id="signup-platform" name="platform" defaultValue="ios">
-              <option value="ios">An iPhone</option>
-              <option value="android">An Android phone</option>
-              <option value="both">A bit of both</option>
-            </select>
-            <div className="honeypot" aria-hidden="true">
-              <label htmlFor="signup-website">Leave this empty</label>
-              <input
-                id="signup-website"
-                name="website"
-                tabIndex={-1}
-                autoComplete="off"
-              />
-            </div>
-            <button
-              disabled={status === "loading"}
-              className="button signup-submit"
-            >
-              {status === "loading"
-                ? "Saving your spot…"
-                : "Save me a little spot"}{" "}
-              <ArrowUpRight size={17} />
-            </button>
-            {status === "error" && (
-              <p className="form-error" role="alert">
-                {error}
-              </p>
-            )}
-            <p className="form-privacy">
-              Just launch news. No spam, no selling your details.
-              <br />
-              By joining, you agree to our <a href="/privacy">privacy notice</a>
-              .
-            </p>
-          </form>
-        </>
-      )}
-    </dialog>
-  );
-}
+
 const screens: {
   id: Screen;
   label: string;
@@ -313,9 +145,9 @@ export function AppShowcase() {
                 </li>
               ))}
             </ul>
-            <WaitlistButton className="text-link">
-              That sounds like my kind of baking <ArrowUpRight size={17} />
-            </WaitlistButton>
+            <AppStatusLink className="text-link">
+              About the upcoming app <ArrowUpRight size={17} />
+            </AppStatusLink>
           </div>
           <div className="feature-phone-scene">
             <span className="scene-circle" />

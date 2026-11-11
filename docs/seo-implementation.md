@@ -88,3 +88,8 @@ The playbook names these possible citation audiences. No contact details, editor
 | Independent flour millers and baking newsletters | Flour-specific journal example and hydration explanation  | Explain one measured flour comparison and link the unchanged canonical worksheet or guide as further reading.                                                                         | Category for further research; no named recipient selected. |
 
 Log any later authorized outreach with date, recipient, resource URL, evidence supplied, response and resulting referring domain. Sending is a separate action requiring explicit authorization.
+
+
+## Mobile-app boundary update — 11 November 2026
+
+The original web-tool/signup verification record above describes the earlier website version. The mobile build change retires signup/removal forms and the website waitlist API, replaces calculators and simulated planning controls with static worked examples, and retains article search/navigation and static printable downloads. Legacy `/tools/` URLs remain indexable educational pages with `WebPage` markup, not `WebApplication`. No historical Supabase records have been deleted; historical-record privacy/contact handling remains an explicit deployment gate in the root README. The new C-boule mark and supplied wordmark masters replace the former mark without redesigning the editorial layout. Current validation results are recorded in the implementation PR; older calculator/signup test results do not certify the retired flows.

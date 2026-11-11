@@ -1,0 +1,60 @@
+name: crispy_crust
+version: 0.1.0+1
+publish_to: none
+description: A private, offline-capable sourdough baking companion.
+environment:
+  sdk: '>=3.13.0 <4.0.0'
+  flutter: '>=3.47.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  baking_domain:
+    path: ../../packages/baking_domain
+  content_models:
+    path: ../../packages/content_models
+  drift: 2.35.4
+  path: 1.9.1
+  path_provider: 2.1.6
+  uuid: 4.6.0
+  flutter_svg: 2.3.3
+  flutter_local_notifications: 23.0.1
+  timezone: 0.11.2
+  flutter_secure_storage: 11.2.0
+  supabase_flutter: 2.18.3
+  flutter_tts: 4.2.5
+  flutter_reactive_ble: 5.6.0
+  permission_handler: 13.0.2
+  share_plus: 13.3.1
+  image_picker: 1.2.3
+  image: 4.12.0
+  http: 1.6.0
+  crypto: 3.0.8
+  pdf: 3.13.1
+  printing: 5.15.1
+  purchases_flutter: 11.0.1
+  url_launcher: 6.3.3
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 6.0.0
+  flutter_launcher_icons: 0.14.4
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/catalogue.json
+    - assets/brand/mark-olive.svg
+  fonts:
+    - family: DM Sans
+      fonts:
+        - asset: assets/brand/DMSans-Variable.ttf
+    - family: DM Serif Display
+      fonts:
+        - asset: assets/brand/DMSerifDisplay-Regular.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/brand/app-icon.png
+  remove_alpha_ios: true
+  adaptive_icon_background: '#465538'
+  adaptive_icon_foreground: assets/brand/app-icon.png
