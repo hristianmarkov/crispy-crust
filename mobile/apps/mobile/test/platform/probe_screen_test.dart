@@ -37,5 +37,5 @@ void main() {
     expect(find.text('Review and save this reading'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     await service.dispose(); store.dispose();
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 }

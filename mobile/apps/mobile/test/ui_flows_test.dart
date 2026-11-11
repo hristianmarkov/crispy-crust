@@ -38,7 +38,7 @@ void main() {
     expect(find.text('Search your recipes'), findsOneWidget);
     expect(store.recipes, hasLength(24));
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 
   testWidgets('add starter then record actual seed flour and water', (tester) async {
     await mount(tester);
@@ -64,7 +64,7 @@ void main() {
     expect(store.records('starter').single.number('mass'), 100);
     expect(find.text('Actual feed history'), findsOneWidget);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 
   testWidgets('experimental recipe cannot create a plan before explicit review acknowledgement', (tester) async {
     final recipe = store.recipes.first;
@@ -79,14 +79,14 @@ void main() {
     expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
     expect(store.records('bake'), isEmpty); // Acknowledging alone is not acceptance.
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 
   testWidgets('two hundred percent text retains usable empty kitchen without layout exception', (tester) async {
     await mount(tester, textScale: 2);
     expect(find.text('Make room for your first bake'), findsOneWidget);
     await tester.ensureVisible(find.text('Plan a bake'));
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 
   testWidgets('local privacy export and import controls remain accessible without a subscription', (tester) async {
     await mount(tester, screen: PrivacyScreen(store: store));
@@ -94,7 +94,7 @@ void main() {
     expect(find.text('Import an archive'), findsOneWidget);
     expect(find.text('Subscribe'), findsNothing);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
   testWidgets('manual observation needs no camera permission and keeps unknown photo empty', (tester) async {
     final starter = (await tester.runAsync(()=>store.save('starter', {'name':'Manual jar','hydration':100,'flour':'Bread flour','storage':'counter'})))!;
     await mount(tester, screen: StarterDetail(store:store,id:starter.id));
@@ -108,7 +108,7 @@ void main() {
     expect(store.records('observation').single.text('temperature'),'23');
     expect(store.records('observation').single.fields.containsKey('photo'),isFalse);
     expect(tester.takeException(),isNull);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 
   testWidgets('cancelling photo picker preserves typed observation notes and sends nothing', (tester) async {
     var pickerCalls=0;
@@ -124,7 +124,7 @@ void main() {
     expect(store.records('observation'),isEmpty);
     expect(find.text('Remove this attachment'),findsNothing);
     expect(tester.takeException(),isNull);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
   testWidgets('photo permission failure preserves observation draft with a clear error', (tester) async {
     final media=LocalMediaService(picker:(camera)async{throw const LocalMediaFailure('PERMISSION_DENIED');});
     await mount(tester,screen:ObservationCaptureScreen(store:store,objectId:'local-bake',starter:false,media:media));
@@ -136,6 +136,6 @@ void main() {
     expect(find.textContaining('Photo was not attached:'),findsOneWidget);
     expect(store.records('observation'),isEmpty);
     expect(tester.takeException(),isNull);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 
 }

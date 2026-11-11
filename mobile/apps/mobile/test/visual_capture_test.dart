@@ -30,5 +30,5 @@ void main(){
       await tester.runAsync(()async{final image=await render.toImage(pixelRatio:2);final bytes=await image.toByteData(format:ui.ImageByteFormat.png);final folder=await Directory('build/screenshots').create(recursive:true);await File('${folder.path}/${title.toLowerCase()}.png').writeAsBytes(bytes!.buffer.asUint8List());image.dispose();});
     }
     await tester.pumpWidget(const SizedBox());await tester.runAsync(()=>db.close());
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 }

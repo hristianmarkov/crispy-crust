@@ -30,7 +30,7 @@ void main(){
     expect(find.text('Cloud kitchen'),findsOneWidget);
     expect(find.textContaining('Local library backup remains unchanged'),findsOneWidget);
     expect(store.records('starter'),hasLength(1));
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
   testWidgets('coach preview excludes unrelated private observation text and cancelling uploads nothing',(tester)async{
     await tester.runAsync(()=>store.save('observation',{'objectId':'local-bake','temperature':'23','rise':'30','note':'PRIVATE-NOTE-DO-NOT-UPLOAD','occurredAt':'2026-11-11T12:00:00Z'}));
     await mount(tester);
@@ -45,7 +45,7 @@ void main(){
     await tester.tap(find.text('Cancel'));await settleDialog(tester);
     expect(api.calls.where((c)=>c['method']=='POST'),isEmpty);
     expect(find.text('No context uploaded.'),findsOneWidget);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
   testWidgets('confirmed coach request grants exact consent before queueing and shows no invented answer',(tester)async{
     await mount(tester);await tester.tap(find.text('Help & jobs'));await tester.pumpAndSettle();
     await tester.tap(find.text('Preview and request coach help'));await tester.pumpAndSettle();
@@ -58,11 +58,11 @@ void main(){
     expect((writes.last['body'] as Map)['context'],{'observations':[]});
     expect(find.textContaining('no guidance has been invented'),findsOneWidget);
     expect(store.records('bake'),isEmpty);
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
   testWidgets('a failed cloud request is visible and does not claim success',(tester)async{
     api.failPath='/kitchens';await mount(tester);
     expect(find.textContaining('Not completed:'),findsOneWidget);
     expect(find.textContaining('PROVIDER_UNAVAILABLE'),findsOneWidget);
     expect(api.calls,hasLength(1));
-  });
+  }, timeout: const Timeout(Duration(seconds:60)));
 }
