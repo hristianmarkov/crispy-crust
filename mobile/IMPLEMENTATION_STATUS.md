@@ -11,6 +11,12 @@ The single full-launch scope in the [build specification](../docs/mobile-app/CRI
 - Marketing-site typecheck, production build and 15 browser checks passed for the marketing-only changes. The site changes have not been deployed.
 - This execution environment cannot currently download Flutter's Dart SDK from `storage.googleapis.com`. Flutter compilation and widget checks therefore run in GitHub Actions. Android/Wear build artifacts, physical devices and release signing must be assessed separately; do not infer their success from an unsigned iOS build.
 
+## Latest observed checkpoint before local handover
+
+CI12 at `67027f14474cc97a7b75545434b5fddeab180d3c` passed backend (55 tests and hosted privacy smoke), domain (50), content (11), Flutter analysis/app tests (119), unsigned iOS and Swift companion tests. Android phone and Wear debug compilation both passed. Final Android identity verification failed with `No verified signing certificate` from the phone APK parser; signing/output-format investigation remains open. The included Wear metadata/output-path correction addresses an additional artifact-location problem but is not proof that certificate verification passes. No full-green final workflow is claimed.
+
+The local continuation handover is [docs/mobile-app/CRISPY_CRUST_MOBILE_IMPLEMENTATION_HANDOVER.md](../docs/mobile-app/CRISPY_CRUST_MOBILE_IMPLEMENTATION_HANDOVER.md). It supersedes older checkpoint summaries for current observed results.
+
 ## Scope ledger
 
 “Implemented source” means an actual code path exists, not that the complete requirement has passed its launch contract.

@@ -8,7 +8,25 @@ import subprocess
 
 root = Path(__file__).resolve().parents[1]
 phone = root / 'apps/mobile/build/app/outputs/flutter-apk/app-debug.apk'
-watch = root / 'native/wearos/app/build/outputs/apk/debug/app-debug.apk'
+# Flutter's root Gradle template relocates every module's build directory to
+# apps/mobile/build/<module>, including :wear. Use generated APK metadata instead
+# of assuming the standalone module path or the archive filename.
+watch = None
+for directory in (root / 'apps/mobile/build/wear/outputs/apk/debug',
+                  root / 'native/wearos/app/build/outputs/apk/debug'):
+    metadata_file = directory / 'output-metadata.json'
+    if metadata_file.is_file():
+        import json
+        metadata = json.loads(metadata_file.read_text())
+        names = [row['outputFile'] for row in metadata.get('elements', []) if isinstance(row.get('outputFile'), str)]
+        if len(names) != 1 or Path(names[0]).name != names[0]:
+            raise SystemExit('Expected one named Wear debug APK in generated output metadata.')
+        candidate = directory / names[0]
+        if candidate.is_file():
+            watch = candidate
+            break
+if watch is None:
+    raise SystemExit('Build :wear:assembleDebug before verifying the Wear APK identity.')
 expected = 'app.crispycrust.mobile'
 sdk = Path(os.environ.get('ANDROID_SDK_ROOT', os.environ.get('ANDROID_HOME', '/usr/local/lib/android/sdk')))
 
