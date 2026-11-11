@@ -46,6 +46,17 @@ void main(){
    expect(f.totalDough,r(860));expect(f.totalFlour,r(500));expect(f.hydration,r(.7));expect(f.toDoughWeight(r(1000)).totalDough,r(1000));expect(f.scale(r(2)).hydration,r(.7));
    expect(()=>PhysicalIngredient(id:'bad',grams:r(100),flourGrams:r(150)),throwsA(code('FORMULA_INVALID_COMPOSITION')));
   });
+  test('rounded physical rows conserve target and expose resulting hydration',(){
+   final f=PhysicalFormula([
+    PhysicalIngredient(id:'flour',grams:r(450.3),flourGrams:r(450.3)),
+    PhysicalIngredient(id:'water',grams:r(300.3),waterGrams:r(300.3)),
+    PhysicalIngredient(id:'starter',grams:r(100.3),flourGrams:r(50.15),waterGrams:r(50.15)),
+    PhysicalIngredient(id:'salt',grams:r(10.3)),
+   ]);
+   final weighed=f.roundForScale();expect(weighed.totalDough,r(861));expect(weighed.ingredients.values.fold(Rational.zero,(a,b)=>a+b),r(861));expect(weighed.residualIngredient,'water');expect(weighed.roundedHydration,r(.702));
+   final noPure=PhysicalFormula([PhysicalIngredient(id:'blend1',grams:r(100.4),flourGrams:r(50),waterGrams:r(50)),PhysicalIngredient(id:'blend2',grams:r(100.4),flourGrams:r(50),waterGrams:r(50))]);
+   expect(()=>noPure.roundForScale(),throwsA(code('ROUNDING_UNSUPPORTED')));
+  });
   test('density requires provenance and temperature conversion is reversible',(){expect(()=>IngredientDensity(r(.5),source:'',uncertainty:'approximate'),throwsArgumentError);final density=IngredientDensity(r(.5),source:'measured pack',uncertainty:'packing varies');expect(density.gramsFor(r(100)),r(50));expect(fahrenheitToCelsius(celsiusToFahrenheit(r(23))),r(23));});
  });
  group('Schedule constraints',(){
@@ -77,7 +88,11 @@ void main(){
  group('Starter empirical check windows',(){
   FeedContext context([String starter='jar'])=>FeedContext(starterId:starter,flourMixKey:'white-v1',hydration:r(1),flourParts:r(2),waterParts:r(2),temperatureC:23);
   List<PeakRecord> history(int count)=>List.generate(count,(i)=>PeakRecord(id:'feed-$i',context:context(),fedAt:at(8).subtract(Duration(days:i+1)),peakAt:at(13,i*10).subtract(Duration(days:i+1)),status:PeakStatus.observed));
-  test('four feeds use supplied broad guidance',(){final e=const StarterEstimator().estimate(context:context(),fedAt:at(8),now:at(9),history:history(4),reviewedEarliest:const Duration(hours:3),reviewedLatest:const Duration(hours:10));expect(e.personalized,isFalse);expect(e.checkWindow.start,at(11));expect(e.comparableCount,4);expect(e.statisticallyCalibrated,isFalse);});
+  test('personalized-only API returns no invented sparse-history fallback',(){
+   final estimator=const StarterEstimator();expect(estimator.estimatePersonalized(context:context(),fedAt:at(8),now:at(9),history:history(4)),isNull);
+   expect(estimator.estimatePersonalized(context:context(),fedAt:at(8),now:at(9),history:history(5))!.personalized,isTrue);
+  });
+  test('four feeds use supplied broad guidance' ,(){final e=const StarterEstimator().estimate(context:context(),fedAt:at(8),now:at(9),history:history(4),reviewedEarliest:const Duration(hours:3),reviewedLatest:const Duration(hours:10));expect(e.personalized,isFalse);expect(e.checkWindow.start,at(11));expect(e.comparableCount,4);expect(e.statisticallyCalibrated,isFalse);});
   test('five genuinely comparable peaks enable empirical broad window',(){final records=history(5);records.add(PeakRecord(id:'unknown',context:context(),fedAt:at(8).subtract(const Duration(days:1)),status:PeakStatus.missedUnknown));final e=const StarterEstimator().estimate(context:context(),fedAt:at(8),now:at(9),history:records,reviewedEarliest:const Duration(hours:3),reviewedLatest:const Duration(hours:10));expect(e.personalized,isTrue);expect(e.comparableCount,5);expect(e.sourceRecordIds,hasLength(5));});
   test('other jars and unknown temperatures never enter personal model',(){final e=const StarterEstimator().estimate(context:context('different'),fedAt:at(8),now:at(9),history:history(6),reviewedEarliest:const Duration(hours:3),reviewedLatest:const Duration(hours:10));expect(e.comparableCount,0);});
   test('rise calculation needs calibrated geometry and is not readiness',(){expect(risePercentage(baselineHeight:r(25),currentHeight:r(42),straightSidedOrCalibrated:true),r(68));expect(()=>risePercentage(baselineHeight:r(25),currentHeight:r(42),straightSidedOrCalibrated:false),throwsA(code('CONTAINER_UNCALIBRATED')));});

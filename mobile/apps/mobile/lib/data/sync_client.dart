@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../platform/cloud_session.dart';
@@ -55,6 +56,7 @@ class CloudSyncClient {
 
   Future<void> _init() async {
     // Additive adapter-owned tables; existing app schema and events are preserved.
+    await db.customStatement('CREATE TABLE IF NOT EXISTS sync_local_only (id TEXT PRIMARY KEY, reason TEXT NOT NULL)');
     await db.customStatement('CREATE TABLE IF NOT EXISTS sync_namespace (singleton INTEGER PRIMARY KEY CHECK(singleton=1), user_id TEXT NOT NULL, kitchen_id TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0, minimum_event_rowid INTEGER NOT NULL DEFAULT 0, membership_revision INTEGER NOT NULL DEFAULT 1)');
     await db.customStatement('CREATE TABLE IF NOT EXISTS sync_bindings (id TEXT NOT NULL, kitchen_id TEXT NOT NULL, remote_revision INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(id,kitchen_id))');
     await db.customStatement('CREATE TABLE IF NOT EXISTS sync_requests (operation_id TEXT PRIMARY KEY, kitchen_id TEXT NOT NULL, body TEXT NOT NULL)');
@@ -79,7 +81,7 @@ class CloudSyncClient {
     request.headers.addAll({'authorization':'Bearer ${identity.accessToken}','content-type':'application/json'});
     if(operationId!=null)request.headers['idempotency-key']=operationId;
     if(body!=null)request.body=jsonEncode(body);
-    final response=await http.Response.fromStream(await _transport.send(request).timeout(const Duration(seconds:20)));
+    final response=await http.Response.fromStream(await _transport.send(request).timeout(const Duration(seconds:20))).timeout(const Duration(seconds:20));
     if(response.bodyBytes.length>2*1024*1024)throw const SyncFailure('SYNC_RESPONSE_TOO_LARGE');
     if(_identity()?.userId!=identity.userId)throw const SyncFailure('ACCOUNT_CHANGED_DURING_SYNC');
     if(response.statusCode>=300&&response.statusCode<400)throw const SyncFailure('SYNC_REDIRECT_REJECTED');
@@ -148,6 +150,7 @@ class CloudSyncClient {
       for(final event in operations) {
         final oid=event.read<String>('id'),aid=event.read<String>('aggregate_id');
         if(blocked.contains(aid))continue;
+        if(await db.customSelect('SELECT id FROM sync_local_only WHERE id=?',variables:[Variable.withString(aid)]).getSingleOrNull()!=null){await db.customStatement("UPDATE outbox SET state='local_only' WHERE operation_id=?",[oid]);skipped++;continue;}
         final payload=jsonDecode(event.read<String>('payload'));
         if(payload is! Map||payload['entity_type'] is! String||payload['fields'] is! Map) {skipped++;continue;}
         final kind=payload['entity_type'] as String;
@@ -233,5 +236,115 @@ class CloudSyncClient {
       return SyncReport(pushed:pushed,pulled:pulled,conflicts:conflicts,skipped:skipped);
     } finally {_running=false;_boundUserForRun=null;}
   }
+
+  Future<List<SyncConflictSummary>> listConflicts() async {
+    await _init();final namespace=await _resolutionNamespace();
+    final grouped=<String,Set<String>>{};
+    for(final row in await db.customSelect('SELECT aggregate_id,code FROM sync_conflicts WHERE kitchen_id=? ORDER BY aggregate_id,sequence',variables:[Variable.withString(namespace.read<String>('kitchen_id'))]).get()){
+      grouped.putIfAbsent(row.read<String>('aggregate_id'),()=>{}).add(row.read<String>('code'));
+    }
+    return grouped.entries.map((e)=>SyncConflictSummary(aggregateId:e.key,kitchenId:namespace.read<String>('kitchen_id'),codes:List.unmodifiable(e.value))).toList();
+  }
+  Future<QueryRow> _resolutionNamespace() async {
+    final identity=_requireIdentity();
+    final namespace=await db.customSelect('SELECT * FROM sync_namespace WHERE singleton=1').getSingleOrNull();
+    if(namespace==null||namespace.read<String>('user_id')!=identity.userId)throw const SyncFailure('LOCAL_LIBRARY_BOUND_TO_ANOTHER_ACCOUNT');
+    if(namespace.read<int>('enabled')!=1)throw const SyncFailure('SYNC_NOT_ENABLED');
+    return namespace;
+  }
+  Future<SyncConflictReview> reviewConflict(String aggregateId) async {
+    if(_running)throw const SyncFailure('SYNC_ALREADY_RUNNING');
+    _running=true;
+    try{await _init();_boundUserForRun=_requireIdentity().userId;final namespace=await _resolutionNamespace();return await _reviewConflict(aggregateId,namespace.read<String>('kitchen_id'));}
+    finally{_running=false;_boundUserForRun=null;}
+  }
+  Future<SyncConflictReview> _reviewConflict(String id,String kitchen) async {
+    final conflicts=await db.customSelect('SELECT code FROM sync_conflicts WHERE kitchen_id=? AND aggregate_id=?',variables:[Variable.withString(kitchen),Variable.withString(id)]).get();
+    if(conflicts.isEmpty)throw const SyncFailure('CONFLICT_NO_LONGER_PRESENT');
+    final local=await db.customSelect('SELECT * FROM records WHERE id=?',variables:[Variable.withString(id)]).getSingleOrNull();
+    Map<String,dynamic>? latest;var cursor=0;final reviewClock=Stopwatch()..start();
+    for(var page=0;page<100;page++){
+      final response=await _call('GET','sync/pull',query:{'kitchen_id':kitchen,'cursor':'$cursor','limit':'100'});
+      if(response is! Map||response['changes'] is! List||response['next_cursor'] is! int||response['has_more'] is! bool)throw const SyncFailure('INVALID_SYNC_RESPONSE');
+      if(reviewClock.elapsed>const Duration(seconds:30))throw const SyncFailure('CONFLICT_REVIEW_FETCH_TIMEOUT',true);
+      final next=response['next_cursor'] as int;
+      if(next<cursor||(response['has_more']==true&&next==cursor))throw const SyncFailure('SYNC_CURSOR_NOT_ADVANCING');
+      for(final raw in response['changes'] as List){if(raw is! Map)throw const SyncFailure('INVALID_SYNC_CHANGE');if(raw['id']==id){if(raw['revision'] is! int||(raw['revision'] as int)<1||raw['operation'] is! String||raw['kind'] is! String)throw const SyncFailure('INVALID_SYNC_CHANGE');latest=Map<String,dynamic>.from(raw);}}
+      cursor=next;if(response['has_more']!=true)break;
+      if(page==99)throw const SyncFailure('SYNC_PAGINATION_LIMIT',true);
+    }
+    final localData=local==null?null:Map<String,dynamic>.from(jsonDecode(local.read<String>('fields')) as Map);
+    final kind=latest?['kind']?.toString()??local?.read<String>('kind');
+    final operation=latest?['operation']?.toString();
+    Map<String,dynamic>? remoteData;
+    if(operation=='upsert'&&latest?['payload'] is Map&&(latest!['payload'] as Map)['data'] is Map)remoteData=Map<String,dynamic>.from((latest['payload'] as Map)['data'] as Map);
+    final pending=await db.customSelect("SELECT e.id,e.kind FROM events e JOIN outbox o ON e.id=o.operation_id WHERE o.aggregate_id=? AND o.state IN ('local','pending','conflict') ORDER BY e.id",variables:[Variable.withString(id)]).get();
+    final physicalPending=pending.any((r)=>!{'RecordUpdated','RecordDeleted','ArchiveImported'}.contains(r.read<String>('kind')));
+    var reason='';
+    if(latest==null){reason='The server has no retained snapshot for this record. Export and resolve manually; absence is not permission to resurrect it.';}
+    else if(!{'upsert','tombstone'}.contains(operation)){reason='The newest remote change is an actual event or schedule. It requires domain reconciliation, not a snapshot overwrite.';}
+    else if(kind==null||!allowedKinds.contains(kind)||{'feed','completion','correction','observation','pantry','discard'}.contains(kind)||physicalPending){reason='This conflict contains physical actions or inventory. Keep the evidence and reconcile the actual events manually.';}
+    else if(local!=null&&local.read<String>('kind')!=kind){reason='Local and remote record types differ. Automatic projection replacement is blocked.';}
+    else if(operation=='upsert'&&(remoteData==null||remoteData.keys.any(_reserved.contains))){reason='The remote snapshot is incomplete or contains privileged fields.';}
+    else if(operation=='upsert'&&localData!=null){
+      final immutable=kind=='bake'?['completedSteps','startedAt','completedAt','recipeSnapshot']:kind=='starter'?['mass','lastFeedAt','hydration','lastSeed','lastFlour','lastWater']:<String>[];
+      if(immutable.any((key)=>jsonEncode(localData[key])!=jsonEncode(remoteData![key])))reason='Recorded physical history differs. Export both versions and reconcile it before choosing a projection.';
+    }
+    final localJson=jsonEncode({'fields':localData,'revision':local?.read<int>('revision'),'deleted_at':local?.readNullable<String>('deleted_at')});
+    return SyncConflictReview._(aggregateId:id,kitchenId:kitchen,kind:kind,localRevision:local?.read<int>('revision'),remoteRevision:latest?['revision'] as int?,remoteOperation:operation,localJson:localJson,remoteJson:jsonEncode(latest),reason:reason,codes:conflicts.map((r)=>r.read<String>('code')).toSet().toList(),pendingCount:pending.length,pendingIdsJson:jsonEncode(pending.map((r)=>r.read<String>('id')).toList()));
+  }
+  /// Explicit server choice only. No upload, rebase, physical-event merge or
+  /// resurrection is attempted. A second read rejects a stale consent preview.
+  Future<SyncResolutionResult> useReviewedServer(SyncConflictReview review,{required bool confirmed,bool keepLocalCopy=false}) async {
+    if(!confirmed)throw const SyncFailure('EXPLICIT_RESOLUTION_REQUIRED');
+    if(_running)throw const SyncFailure('SYNC_ALREADY_RUNNING');
+    _running=true;
+    try{
+      await _init();_boundUserForRun=_requireIdentity().userId;
+      final namespace=await _resolutionNamespace();if(namespace.read<String>('kitchen_id')!=review.kitchenId)throw const SyncFailure('CONFLICT_NAMESPACE_CHANGED');
+      final fresh=await _reviewConflict(review.aggregateId,review.kitchenId);
+      if(fresh.fingerprint!=review.fingerprint)throw const SyncFailure('CONFLICT_REVIEW_STALE');
+      if(!fresh.canUseServer)throw const SyncFailure('PHYSICAL_RECONCILIATION_REQUIRED');
+      final remote=fresh.remoteChange!;final now=DateTime.now().toUtc().toIso8601String();String? copyId;
+      await db.transaction(()async{
+        await _resolutionNamespace();
+        final latest=await db.customSelect('SELECT fields,revision,deleted_at FROM records WHERE id=?',variables:[Variable.withString(review.aggregateId)]).getSingleOrNull();
+        final currentJson=jsonEncode({'fields':latest==null?null:jsonDecode(latest.read<String>('fields')),'revision':latest?.read<int>('revision'),'deleted_at':latest?.readNullable<String>('deleted_at')});
+        if(currentJson!=fresh._localJson)throw const SyncFailure('CONFLICT_REVIEW_STALE');
+        final pendingNow=await db.customSelect("SELECT operation_id FROM outbox WHERE aggregate_id=? AND state IN ('local','pending','conflict') ORDER BY operation_id",variables:[Variable.withString(fresh.aggregateId)]).get();
+        if(jsonEncode(pendingNow.map((r)=>r.read<String>('operation_id')).toList())!=fresh._pendingIdsJson)throw const SyncFailure('CONFLICT_REVIEW_STALE');
+        final before=fresh.localFields;
+        if(keepLocalCopy&&before!=null){copyId=_uuid.v4();final copy={'name':'Retained conflict copy','sourceKind':fresh.kind,'sourceAggregateId':fresh.aggregateId,'snapshot':before,'retainedAt':now,'_syncLocalOnly':true};await db.customStatement('INSERT INTO records(id,kind,fields,revision,updated_at) VALUES(?,?,?,1,?)',[copyId,'conflict_copy',jsonEncode(copy),now]);await db.customStatement('INSERT INTO sync_local_only(id,reason) VALUES(?,?)',[copyId,'Explicit private copy from sync conflict']);}
+        if(fresh.remoteOperation=='tombstone'){
+          await db.customStatement('UPDATE records SET deleted_at=?,revision=?,updated_at=? WHERE id=?',[now,fresh.remoteRevision,now,fresh.aggregateId]);
+        }else{
+          final fields=Map<String,dynamic>.from((remote['payload'] as Map)['data'] as Map);
+          await db.customStatement('INSERT INTO records(id,kind,fields,revision,updated_at,deleted_at) VALUES(?,?,?,?,?,NULL) ON CONFLICT(id) DO UPDATE SET fields=excluded.fields,revision=excluded.revision,updated_at=excluded.updated_at,deleted_at=NULL',[fresh.aggregateId,fresh.kind,jsonEncode(fields),fresh.remoteRevision,now]);
+        }
+        final audit=_uuid.v4();
+        await db.customStatement('INSERT INTO events(id,aggregate_id,kind,payload,occurred_at,recorded_at,base_revision) VALUES(?,?,?,?,?,?,?)',[audit,fresh.aggregateId,'SyncConflictResolved',jsonEncode({'decision':'use_server','local_before':before,'accepted_server':remote,'retained_private_copy':copyId,'pending_operations_discarded':fresh.pendingCount}),now,now,fresh.localRevision??0]);
+        await db.customStatement("UPDATE outbox SET state='discarded_resolution' WHERE aggregate_id=? AND state IN ('local','pending','conflict')",[fresh.aggregateId]);
+        await _bind(fresh.aggregateId,fresh.kitchenId,fresh.remoteRevision!);
+        await db.customStatement('DELETE FROM sync_conflicts WHERE kitchen_id=? AND aggregate_id=?',[fresh.kitchenId,fresh.aggregateId]);
+      });
+      return SyncResolutionResult(privateCopyId:copyId);
+    }finally{_running=false;_boundUserForRun=null;}
+  }
   void close()=>_transport.close();
 }
+
+class SyncConflictSummary {
+  const SyncConflictSummary({required this.aggregateId,required this.kitchenId,required this.codes});
+  final String aggregateId,kitchenId;final List<String> codes;
+}
+class SyncConflictReview {
+  const SyncConflictReview._({required this.aggregateId,required this.kitchenId,required this.kind,required this.localRevision,required this.remoteRevision,required this.remoteOperation,required String localJson,required String remoteJson,required this.reason,required this.codes,required this.pendingCount,required String pendingIdsJson}):_localJson=localJson,_remoteJson=remoteJson,_pendingIdsJson=pendingIdsJson;
+  final String aggregateId,kitchenId,reason;final String? kind,remoteOperation;final int? localRevision,remoteRevision;final List<String> codes;final int pendingCount;
+  final String _localJson,_remoteJson,_pendingIdsJson;
+  Map<String,dynamic>? get localFields {final data=jsonDecode(_localJson)['fields'];return data is Map?Map<String,dynamic>.from(data):null;}
+  Map<String,dynamic>? get remoteChange {final data=jsonDecode(_remoteJson);return data is Map?Map<String,dynamic>.from(data):null;}
+  bool get canUseServer=>reason.isEmpty&&remoteRevision!=null;
+  String get fingerprint=>sha256.convert(utf8.encode('$aggregateId|$kitchenId|$_localJson|$_remoteJson|$reason|$pendingCount|$_pendingIdsJson')).toString();
+  Map<String,dynamic> toJson()=>{'aggregate_id':aggregateId,'kitchen_id':kitchenId,'kind':kind,'local_revision':localRevision,'remote_revision':remoteRevision,'remote_operation':remoteOperation,'local':localFields,'remote':remoteChange,'reason':reason,'codes':codes,'pending_operation_count':pendingCount};
+}
+class SyncResolutionResult {const SyncResolutionResult({this.privateCopyId});final String? privateCopyId;}

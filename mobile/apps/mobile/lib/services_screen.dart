@@ -4,6 +4,8 @@ import 'data/local_store.dart';
 import 'data/sync_client.dart';
 import 'screens/cloud_workspace_screen.dart';
 import 'screens/probe_screen.dart';
+import 'screens/subscription_screen.dart';
+import 'screens/sync_conflicts_screen.dart';
 import 'platform/cloud_session.dart';
 import 'platform/local_notifications.dart';
 import 'platform/reminders.dart';
@@ -22,6 +24,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
   final notifications=LocalNotificationGateway();
   final kitchen=KitchenPlatform();
   CloudSyncClient? sync;
+  StreamSubscription<dynamic>? authSubscription;
   CloudSyncClient get syncClient=>sync??=CloudSyncClient(db:widget.store.db,session:cloud,baseUri:Uri.parse('${configuration.url}/functions/v1/app-api/v1'));
   bool busy=false;
   String message='Local baking works without connecting an account.';
@@ -32,7 +35,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
     catch(e){if(mounted)setState(()=>message='The action was not completed: $e');}
     finally{if(mounted)setState(()=>busy=false);}
   }
-  @override void dispose(){email.dispose();code.dispose();unawaited(kitchen.stopSpeaking());unawaited(kitchen.setKeepAwake(false));super.dispose();}
+  void watchAuth() {
+    if(authSubscription!=null)return;
+    authSubscription=cloud.authChanges?.listen((_) {if(mounted)setState((){});});
+  }
+  @override void initState(){super.initState();watchAuth();}
+  @override void dispose(){unawaited(authSubscription?.cancel());email.dispose();code.dispose();unawaited(kitchen.stopSpeaking());unawaited(kitchen.setKeepAwake(false));super.dispose();}
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Connected services')),body:SafeArea(child:ListView(padding:const EdgeInsets.all(20),children:[
     Text('You choose what connects',style:Theme.of(context).textTheme.headlineSmall),
     const SizedBox(height:12),const Text('An account does not automatically upload your library. Reminders, calendars and cloud requests are separate choices.'),
@@ -66,8 +74,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
       return '$count busy intervals saved. Review them in Plan before accepting a schedule.';
     }),child:const Text('Choose calendar access and import busy times')),
     const SizedBox(height:24),Text('Cloud account',style:Theme.of(context).textTheme.titleLarge),
-    const Text('Cloud services need the separate app backend configured in this build. Never enter a server secret in the app. Library sync remains off until explicitly selected.'),
-    OutlinedButton(onPressed:busy?null:()=>run(()async{final result=await cloud.connect(const CloudConfiguration.fromEnvironment());return result.message;}),child:const Text('Connect configured app backend')),
+    const Text('Connect an account for shared kitchens and optional backup. Your library stays on this phone until you choose to sync it.'),
+    OutlinedButton(onPressed:busy?null:()=>run(()async{final result=await cloud.connect(const CloudConfiguration.fromEnvironment());watchAuth();return result.message;}),child:const Text('Connect cloud account')),
     if(cloud.client!=null)...[
       TextField(controller:email,keyboardType:TextInputType.emailAddress,autofillHints:const [AutofillHints.email],decoration:const InputDecoration(labelText:'Email')),
       const SizedBox(height:8),OutlinedButton(onPressed:busy?null:()=>run(()async{await cloud.sendEmailCode(email.text);return 'If delivery is available, check your email for the sign-in code.';}),child:const Text('Send sign-in code')),
@@ -82,10 +90,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
         if(accepted==true)await run(()async{final account=await syncClient.bootstrapAccount();await syncClient.enable(kitchenId:account['kitchen_id'] as String,userOptIn:true,uploadExistingRecords:true);final result=await syncClient.syncOnce();await widget.store.load();return 'Uploaded ${result.pushed}; received ${result.pulled}; ${result.conflicts} need review; ${result.skipped} unsupported records remain local.';});
       },child:const Text('Review and enable library sync')),
       OutlinedButton(onPressed:busy?null:()=>run(()async{final result=await syncClient.syncOnce();await widget.store.load();return 'Uploaded ${result.pushed}; received ${result.pulled}; ${result.conflicts} conflicts need review.';}),child:const Text('Sync now')),
+      OutlinedButton(onPressed:busy?null:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>SyncConflictsScreen(store:widget.store,sync:syncClient))),child:const Text('Review sync conflicts')),
       OutlinedButton(onPressed:busy?null:()=>run(()async{await syncClient.disable();return 'Sync disabled. Existing cloud copies remain until you delete them.';}),child:const Text('Disable library sync')),
       OutlinedButton(onPressed:busy?null:()=>run(()async{await syncClient.disable();await cloud.signOut();return 'Cloud account signed out. Your local library remains on this device.';}),child:const Text('Sign out of cloud services')),
       ],
     ],
+    const SizedBox(height:24),OutlinedButton(onPressed:busy?null:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>SubscriptionScreen(client:cloud.client,apiBase:configuration.isConfigured?Uri.parse('${configuration.url}/functions/v1/app-api/v1'):null))),child:const Text('Subscriptions and restore purchases')),
     const SizedBox(height:24),Text('Read-aloud and kitchen screen',style:Theme.of(context).textTheme.titleLarge),
     OutlinedButton(onPressed:busy?null:()=>run(()async=> (await kitchen.speak('Check the dough. Timing is a guide; record what you observe.')).message),child:const Text('Try spoken guidance')),
     OutlinedButton(onPressed:busy?null:()=>run(()async=> (await kitchen.setKeepAwake(true)).message),child:const Text('Keep this screen awake')),
@@ -98,6 +108,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
   ])));
 }
 Future<ReminderReconciliation> reconcileReminders(LocalAppStore store,LocalNotificationGateway gateway) {
-  final intents=store.records('timer').where((t)=>t.text('state')=='running'&&t.date('dueAt')!=null).map((t)=>ReminderIntent(id:t.id,aggregateId:t.text('bakeId',t.id),revision:t.updatedAt.millisecondsSinceEpoch,title:t.text('bakeName','Crispy Crust'),action:t.text('name','Check the bake'),dueAt:t.date('dueAt')!.toUtc(),isCheck:true)).toList();
+  final intents=store.records('timer').where((t)=>t.text('state')=='running'&&t.date('dueAt')!=null).map((t)=>ReminderIntent(id:t.id,aggregateId:t.text('bakeId',t.text('starterId',t.id)),revision:t.revision,title:t.text('bakeName','Crispy Crust'),action:t.text('name','Check the bake'),dueAt:t.date('dueAt')!.toUtc(),isCheck:true)).toList();
   return ReminderCoordinator(gateway).reconcile(intents,now:DateTime.now().toUtc());
 }

@@ -7,6 +7,7 @@ import 'comparison.dart';
 /// certify that merely increasing a number of loaves preserves a bake method.
 final class ProductionMethod {
  final String recipeId,title,validationEvidenceId,readyStepId;
+ final bool experimental;
  final PhysicalFormula perPieceFormula;
  final RecipeGraph graph;
  final int maximumPiecesPerLoad;
@@ -14,9 +15,9 @@ final class ProductionMethod {
  final Map<String,Rational> ovenTemperatures;
  ProductionMethod({required this.recipeId,required this.title,required this.validationEvidenceId,
   required this.readyStepId,required this.perPieceFormula,required this.graph,
-  required this.maximumPiecesPerLoad,Set<String> perPieceResources=const {},Map<String,Rational> ovenTemperatures=const {}})
+  required this.maximumPiecesPerLoad,this.experimental=false,Set<String> perPieceResources=const {},Map<String,Rational> ovenTemperatures=const {}})
   :perPieceResources=Set.unmodifiable(perPieceResources),ovenTemperatures=Map.unmodifiable(ovenTemperatures) {
-  if(recipeId.isEmpty||title.isEmpty||validationEvidenceId.trim().isEmpty||maximumPiecesPerLoad<1||perPieceFormula.totalDough<=Rational.zero)throw const DomainException('PRODUCTION_METHOD_UNVALIDATED','A positive formula and explicit reviewed load envelope/evidence are required.');
+  if(recipeId.isEmpty||title.isEmpty||(!experimental&&validationEvidenceId.trim().isEmpty)||maximumPiecesPerLoad<1||perPieceFormula.totalDough<=Rational.zero)throw const DomainException('PRODUCTION_METHOD_UNVALIDATED','A positive formula and explicit reviewed load envelope/evidence are required.');
   final order=graph.topologicalOrder(),byId={for(final s in graph.steps)s.id:s};
   if(order.any((s)=>s.id.startsWith('__production_')))throw const DomainException('PRODUCTION_RESERVED_STEP_ID','Recipe step uses an internal production identifier.');
   if(!byId.containsKey(readyStepId))throw const DomainException('PRODUCTION_READY_STEP_MISSING','Identify the method step that completes cooling/readiness for pickup.');
@@ -121,10 +122,11 @@ final class ProductionPlanner {
    }
    combined.add(RecipeStep(id:batch.readyStepId,title:'${batch.title} · ready for packing/pickup',nominalDuration:Duration.zero,dependencies:['${batch.id}/${method.readyStepId}'],startWindow:TimeWindow(horizon.start,batch.pickupWindow.start)));
   }
-  final graph=RecipeGraph(recipeVersion:canonicalJson(items.map((i)=>{'itemId':i.id,'recipeVersion':i.method.graph.recipeVersion}).toList()),profileVersion:canonicalJson(items.map((i)=>i.method.validationEvidenceId).toList()),steps:combined);
+  final graph=RecipeGraph(recipeVersion:canonicalJson(items.map((i)=>{'itemId':i.id,'recipeVersion':i.method.graph.recipeVersion}).toList()),profileVersion:canonicalJson(items.map((i)=>{'evidence':i.method.validationEvidenceId,'experimental':i.method.experimental}).toList()),steps:combined);
   graph.topologicalOrder();
   return ProductionBlueprint(batches:batches,graph:graph,readyBy:items.map((i)=>i.pickupWindow.start).reduce((a,b)=>a.isAfter(b)?a:b),assumptions:[
-   'Pieces are separate named loads within the caller-supplied reviewed load envelope.',
+   if(items.any((i)=>i.method.experimental))'Experimental plan: load sizes and timing are user-confirmed assumptions, not kitchen-validated bounds.',
+   'Pieces are separate named loads within the caller-supplied load envelope.',
    'Oven occupancies are conservatively serialised in the displayed load order; this is not a globally optimal production schedule.',
    'Published oven transitions and per-piece resource units are supplied by the caller.',
    'Cooling/readiness must finish before pickup begins. This is not a food-business compliance or shelf-life certification.',

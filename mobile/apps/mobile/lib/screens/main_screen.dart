@@ -4,6 +4,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/app_store.dart';
+import '../data/planning_adapter.dart';
+import 'plan_review_screen.dart';
+import 'production_screen.dart' as production;
+import 'starter_insights_screen.dart';
+import 'journal_book_screen.dart';
+import 'private_recipe_editor.dart';
+import 'formula_tools_screen.dart';
 import '../platform/export_share.dart';
 import '../platform/local_media.dart';
 
@@ -65,10 +72,11 @@ String _date(dynamic value) {
 String _grams(dynamic value) => '${_num(value).toStringAsFixed(_num(value) == _num(value).roundToDouble() ? 0 : 1)} g';
 
 class _Page extends StatelessWidget {
-  const _Page({required this.children});
+  const _Page({required this.children, this.scrollKey});
   final List<Widget> children;
+  final Key? scrollKey;
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.fromLTRB(20, 12, 20, 32), children: children);
+  Widget build(BuildContext context) => ListView(key: scrollKey, padding: const EdgeInsets.fromLTRB(20, 12, 20, 32), children: children);
 }
 class _Section extends StatelessWidget {
   const _Section(this.title);
@@ -124,7 +132,7 @@ class _FormScreenState extends State<_FormScreen> {
     for (final f in widget.fields) Padding(padding: const EdgeInsets.only(bottom: 18), child: TextFormField(controller: values[f.key], decoration: InputDecoration(labelText: f.label, alignLabelWithHint: true), minLines: f.multiline ? 3 : 1, maxLines: f.multiline ? 8 : 1, keyboardType: f.numeric ? const TextInputType.numberWithOptions(decimal: true) : f.multiline ? TextInputType.multiline : TextInputType.text, validator: (v) {
       if (f.required && (v == null || v.trim().isEmpty)) return 'Enter ${f.label.toLowerCase()}';
       if (!f.required && (v == null || v.trim().isEmpty)) return null;
-      if (f.numeric && (double.tryParse(v ?? '') == null || double.parse(v!) < 0)) return 'Enter a non-negative number';
+      if (f.numeric && (double.tryParse(v ?? '') == null || !double.parse(v!).isFinite || double.parse(v) < 0)) return 'Enter a finite non-negative number';
       return null;
     })),
     FilledButton(onPressed: () {if (key.currentState!.validate()) Navigator.pop(context, {for (final e in values.entries) e.key: e.value.text.trim()});}, child: Text(widget.submit)),
@@ -139,10 +147,13 @@ class TodayScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bakes = store.records('bake').where((b) => !['complete', 'abandoned'].contains(b.fields['state'])).toList();
     final starters = store.records('starter');
+    final timers = store.records('timer').where((t)=>t.text('state')=='running').toList()..sort((a,b)=>(a.date('dueAt')??a.updatedAt).compareTo(b.date('dueAt')??b.updatedAt));
     return _Page(children: [
       Text('Your kitchen, at a glance.', style: Theme.of(context).textTheme.headlineSmall),
       const _Notice('Saved on this device. Local records are not a cloud backup.', icon: Icons.phone_android_outlined),
       if (bakes.isEmpty && starters.isEmpty) _Empty(Icons.bakery_dining_outlined, 'Make room for your first bake', 'Add an established starter or choose a recipe. No account, camera or calendar is needed to begin.', action: FilledButton(onPressed: plan, child: const Text('Plan a bake'))),
+      if(timers.isNotEmpty)const _Section('Saved checks and timers'),
+      for(final timer in timers)_TimerCard(store:store,timer:timer),
       if (bakes.isNotEmpty) const _Section('Needs your attention'),
       for (final b in bakes) _BakeCard(store: store, bake: b),
       if (starters.isNotEmpty) const _Section('Your starters'),
@@ -208,7 +219,7 @@ class StarterDetail extends StatelessWidget {
   }
   Future<void> _mode(BuildContext context, AppRecord s) async {
     final selected = await showModalBottomSheet<String>(context: context, showDragHandle: true, builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [for (final mode in ['counter', 'fridge', 'travel', 'paused', 'revival']) ListTile(title: Text(mode[0].toUpperCase() + mode.substring(1)), leading: Icon(mode == s.text('storage') ? Icons.check_circle : Icons.circle_outlined), onTap: () => Navigator.pop(c, mode))])));
-    if (selected != null && context.mounted) await _run(context, () async {await store.save('starter', {...s.fields, 'storage': selected}, id: id);});
+    if (selected != null && context.mounted) await _run(context, () async {await setStarterCareMode(store, id, selected);});
   }
   @override
   Widget build(BuildContext context) => AnimatedBuilder(animation: store, builder: (context, _) {
@@ -217,6 +228,7 @@ class StarterDetail extends StatelessWidget {
     final feeds = store.records('feed').where((f) => f.text('starterId') == id).toList();
     final observations = store.records('observation').where((o) => o.text('objectId') == id).toList();
     return Scaffold(appBar: AppBar(title: Text(s.text('name'))), body: _Page(children: [
+      OutlinedButton.icon(onPressed:()=>_open(context,StarterInsightsScreen(store:store,starterId:id)),icon:const Icon(Icons.insights_outlined),label:const Text('Rise history, care and reminders')),
       _Panel(children: [Text('${s.text('hydration')}% hydration · ${s.text('storage', 'counter')} care', style: Theme.of(context).textTheme.titleMedium), Text(s.text('flour')), const SizedBox(height: 12), Text('Last actual feed: ${_date(s.fields['lastFeedAt'])}'), if (s.fields['mass'] != null) Text('Recorded build: ${_grams(s.fields['mass'])}'), const SizedBox(height: 16), FilledButton(onPressed: () => _feed(context, s), child: const Text('Log a feed')), OutlinedButton(onPressed: () => _observe(context), child: const Text('Record rise or temperature')), TextButton(onPressed: () => _mode(context, s), child: const Text('Storage, travel or pause'))]),
       const _Notice('No personalised peak prediction is shown until enough comparable confirmed peaks are available. Use observations and reviewed guidance; a timer cannot certify starter safety.'),
       const _Section('Observations'),
@@ -301,30 +313,10 @@ class _RecipeDetailState extends State<RecipeDetail> {
 double _ingredientGrams(Map<String, dynamic> i) => _num(i['grams'] ?? i['massG'] ?? i['quantityG'] ?? i['weightG']);
 
 class RecipeEditor extends StatelessWidget {
-  const RecipeEditor({super.key, required this.store, this.original});
+  const RecipeEditor({super.key,required this.store,this.original});
   final AppStore store;
-  final Map<String, dynamic>? original;
-  @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Your private recipe')), body: _Page(children: [
-    const _Notice('Paste text to keep a source clipping or enter a structured formula below. A clipping is a draft until its ingredients and method have been reviewed. URL/OCR processing requires a configured account service.'),
-    FilledButton.icon(onPressed: () async {
-      final f = await _form(context, 'Save recipe draft', [_Field('title', 'Recipe title', initial: _str(original?['title'])), _Field('source', 'Source / attribution', initial: _str(original?['source']), required: false), _Field('text', 'Recipe text and notes', initial: _str(original?['notes']), multiline: true)], submit: 'Save private draft');
-      if (f != null && context.mounted) await _run(context, () async {await store.save('recipe', {...?original, 'title': f['title'], 'source': f['source'], 'notes': f['text'], 'family': 'Own recipe', 'status': 'draft', 'kitchenValidated': false}); if (context.mounted) Navigator.pop(context);}, success: 'Private draft saved.');
-    }, icon: const Icon(Icons.content_paste), label: const Text('Paste and save a draft')),
-    const SizedBox(height: 12),
-    OutlinedButton(onPressed: () async {
-      final f = await _form(context, 'Create a runnable formula', const [_Field('title', 'Recipe name'), _Field('flour', 'Added flour (g)', initial: '450', numeric: true), _Field('water', 'Added water (g)', initial: '300', numeric: true), _Field('starter', 'Starter / levain (g)', initial: '100', numeric: true), _Field('starterHydration', 'Starter hydration (%)', initial: '100', numeric: true), _Field('salt', 'Salt (g)', initial: '10', numeric: true), _Field('method', 'One method step per line', multiline: true)], explanation: 'This is your own experimental formula. Specify the physical ingredients exactly once. You must judge readiness using your method; no tested timing profile is assumed.');
-      if (f == null || !context.mounted) return;
-      final starter = double.parse(f['starter']!), h = double.parse(f['starterHydration']!) / 100;
-      final totalFlour = double.parse(f['flour']!) + starter / (1 + h);
-      final totalWater = double.parse(f['water']!) + starter * h / (1 + h);
-      if (totalFlour <= 0) {ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Total flour must be greater than zero.'))); return;}
-      await _run(context, () async {
-        await store.save('recipe', {'title': f['title'], 'family': 'Own recipe', 'status': 'user_confirmed', 'kitchenValidated': false, 'hydration': totalWater / totalFlour * 100, 'ingredients': [for (final key in ['flour', 'water', 'starter', 'salt']) {'name': key, 'grams': double.parse(f[key]!), if (key == 'starter') 'hydration': h * 100}], 'steps': [for (final entry in f['method']!.split('\n').where((s) => s.trim().isNotEmpty).toList().asMap().entries) {'id': 'step-${entry.key}', 'title': entry.value.trim(), 'instructions': entry.value.trim(), 'durationMinutes': 0, 'readinessGate': true}]});
-        if (context.mounted) Navigator.pop(context);
-      }, success: 'Experimental formula saved.');
-    }, child: const Text('Enter ingredients and method')),
-  ]));
+  final Map<String,dynamic>? original;
+  @override Widget build(BuildContext context)=>PrivateRecipeEditor(store:store,original:original);
 }
 
 class PlanScreen extends StatefulWidget {
@@ -342,7 +334,7 @@ class _PlanScreenState extends State<PlanScreen> {
   bool serveTarget = true, confirmed = false, busy = false;
   late DateTime target = DateTime.now().add(const Duration(days: 1)).copyWith(hour: 11, minute: 0);
   @override
-  void initState() {super.initState(); recipeId = _str(widget.initialRecipe?['id']).isEmpty ? null : _str(widget.initialRecipe?['id']);}
+  void initState() {super.initState(); recipeId = widget.initialRecipe==null?null:_str(widget.initialRecipe?['id'],'review-snapshot');}
   Future<void> _time() async {
     final day = await showDatePicker(context: context, initialDate: target, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 365)));
     if (day == null || !mounted) return;
@@ -358,9 +350,10 @@ class _PlanScreenState extends State<PlanScreen> {
   }
   @override
   Widget build(BuildContext context) {
-    final all = [...widget.store.recipes, ...widget.store.records('recipe').map((r) => {...r.fields, 'id': r.id})].where((r) => _maps(r['steps']).isNotEmpty).toList();
+    final initial=widget.initialRecipe;
+    final all = [if(initial!=null){...initial,'id':initial['id']??'review-snapshot'}, ...[...widget.store.recipes, ...widget.store.records('recipe').map((r) => {...r.fields, 'id': r.id})].where((r)=>initial==null||r['id']!=initial['id'])].where((r) => _maps(r['steps']).isNotEmpty).toList();
     final selected = all.where((r) => _str(r['id']) == recipeId).firstOrNull;
-    final body = _Page(children: [
+    final body = _Page(scrollKey: const ValueKey('plan-scroll'), children: [
       Text('Fit the hands-on moments.', style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 18),
       DropdownButtonFormField<String>(initialValue: all.any((r) => _str(r['id']) == recipeId) ? recipeId : null, isExpanded: true, decoration: const InputDecoration(labelText: 'Recipe'), items: all.map((r) => DropdownMenuItem(value: _str(r['id']), child: Text(_str(r['title']), overflow: TextOverflow.ellipsis))).toList(), onChanged: (v) => setState(() {recipeId = v; confirmed = false;})),
@@ -380,7 +373,14 @@ class _PlanScreenState extends State<PlanScreen> {
       FilledButton.icon(onPressed: !confirmed || selected == null || busy || scale > 1 ? null : () async {
         setState(() => busy = true);
         await _run(context, () async {
-          final bake = await widget.store.createBake(selected, scale: scale, serveAt: serveTarget ? target : null);
+          final start=serveTarget?null:DateTime.now().toUtc().add(const Duration(minutes:2));
+          final candidate=planRecipe(selected,widget.store.records('availability'),[...widget.store.records('bake'),...widget.store.records('production')],{'oven':(widget.store.preference('ovenCapacity',1) as num).toInt()},serveAt:serveTarget?target:null,startAt:start);
+          if(!context.mounted)return;
+          setState(()=>busy=false);
+          final accepted=await Navigator.of(context).push<bool>(MaterialPageRoute(builder:(_)=>PlanReviewScreen(recipe:selected,candidate:candidate,scale:scale)));
+          if(accepted!=true||!mounted)return;
+          setState(()=>busy=true);
+          final bake = await widget.store.createBake(selected, scale: scale, serveAt: serveTarget ? target : null,startAt:start,expectedSchedule:candidate.toJson());
           if (context.mounted) _open(context, BakeDetail(store: widget.store, id: bake.id));
         });
         if (mounted) setState(() => busy = false);
@@ -440,25 +440,31 @@ class _BakeDetailState extends State<BakeDetail> {
       const _Section('This bake’s ingredients'),
       for (final i in _maps(b.fields['ingredients'])) ListTile(contentPadding: EdgeInsets.zero, title: Text(_str(i['name'], _str(i['ingredientId']))), trailing: Text(_grams(_ingredientGrams(i)))),
       const _Section('Full method'),
-      for (var n = 0; n < steps.length; n++) ListTile(contentPadding: EdgeInsets.zero, leading: Icon(n < index ? Icons.check_circle : n == index ? Icons.radio_button_checked : Icons.circle_outlined), title: Text(_str(steps[n]['title'], _str(steps[n]['name'], 'Step ${n + 1}'))), subtitle: Text(_str(steps[n]['instructions'], _str(steps[n]['instruction'])))),
+      for (var n = 0; n < steps.length; n++) ListTile(contentPadding: EdgeInsets.zero, leading: Icon(n < index ? Icons.check_circle : n == index ? Icons.radio_button_checked : Icons.circle_outlined), title: Text(_str(steps[n]['title'], _str(steps[n]['name'], 'Step ${n + 1}'))), subtitle: Text('${_str(steps[n]['instructions'], _str(steps[n]['instruction']))}\nPlanned: ${_date(steps[n]['plannedStart'])} → ${_date(steps[n]['plannedEnd'])}')),
       const _Section('Actual observations'),
       if (observations.isEmpty) const Text('No observations recorded. Unmeasured values remain unknown.'),
       for (final o in observations) _Panel(children: [Text(_date(o.fields['occurredAt'])), if (o.text('temperature').isNotEmpty) Text('Dough ${o.text('temperature')} °C'), if (o.text('rise').isNotEmpty) Text('Rise ${o.text('rise')}%'), Text(o.text('texture')), if(o.fields['photo'] is Map) _LocalPhotoView(metadata: Map<String,dynamic>.from(o.fields['photo'] as Map), label: 'Your saved dough observation photo'), if(o.fields['photo'] is Map) TextButton(onPressed:()=>_removeObservationPhoto(context,widget.store,o),child:const Text('Remove this private photo'))]),
       if (b.text('state') == 'complete') FilledButton(onPressed: () => _finish(b), child: const Text('Add outcome / next-time note')),
-      if (b.text('state') == 'complete') FilledButton(onPressed: () async {final pinned = b.fields['recipeSnapshot']; if (pinned is! Map) {ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This bake has no pinned recipe snapshot. Export it and review a private formula first.'))); return;} final recipe = Map<String,dynamic>.from(pinned); await _run(context, () async {final again = await widget.store.createBake(recipe, scale:b.number('scale',1).toDouble()); if (context.mounted) _open(context, BakeDetail(store: widget.store, id: again.id));});}, child: const Text('Bake again from this formula')),
+      if (b.text('state') == 'complete') FilledButton(onPressed: () async {final pinned = b.fields['recipeSnapshot']; if (pinned is! Map) {ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This bake has no pinned recipe snapshot. Export it and review a private formula first.'))); return;} final recipe = Map<String,dynamic>.from(pinned); _open(context,PlanScreen(store:widget.store,initialRecipe:recipe,initialScale:b.number('scale',1).toDouble(),standalone:true));}, child: const Text('Bake again from this formula')),
       TextButton(onPressed: () => _open(context, TextExport(title: 'Bake record', text: const JsonEncoder.withIndent('  ').convert(b.fields))), child: const Text('Export this bake')),
     ]));
   });
 }
-class _TimerCard extends StatelessWidget {
+class _TimerCard extends StatefulWidget {
   const _TimerCard({required this.store, required this.timer});
   final AppStore store;
   final AppRecord timer;
-  @override
-  Widget build(BuildContext context) {
+  @override State<_TimerCard> createState()=>_TimerCardState();
+}
+class _TimerCardState extends State<_TimerCard> {
+  Timer? ticker;
+  @override void initState(){super.initState();ticker=Timer.periodic(const Duration(seconds:1),(_){if(mounted)setState((){});});}
+  @override void dispose(){ticker?.cancel();super.dispose();}
+  @override Widget build(BuildContext context) {
+    final timer=widget.timer;
     final remaining = (timer.date('dueAt') ?? DateTime.now()).difference(DateTime.now());
     final seconds = remaining.inSeconds.abs();
-    return _Panel(children: [Text(timer.text('name'), style: Theme.of(context).textTheme.titleMedium), Text('${timer.text('bakeName')} · ${remaining.isNegative ? 'Check due' : 'Due in'} ${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}', style: Theme.of(context).textTheme.titleLarge), Text('Saved deadline: ${_date(timer.fields['dueAt'])}'), TextButton(onPressed: () => _run(context, () async {await store.save('timer', {...timer.fields, 'state': 'acknowledged'}, id: timer.id);}), child: const Text('Acknowledge timer'))]);
+    return _Panel(children: [Text(timer.text('name'), style: Theme.of(context).textTheme.titleMedium), Text('${timer.text('bakeName')} · ${remaining.isNegative ? 'Check due' : 'Due in'} ${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}', style: Theme.of(context).textTheme.titleLarge), Text('Saved deadline: ${_date(timer.fields['dueAt'])}'), TextButton(onPressed: () => _run(context, () async {await widget.store.save('timer', {...timer.fields, 'state': 'acknowledged'}, id: timer.id);}), child: const Text('Acknowledge timer'))]);
   }
 }
 
@@ -490,8 +496,9 @@ class JournalScreen extends StatelessWidget {
       Text('Remember what worked.', style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 14),
       if (bakes.isEmpty) const _Empty(Icons.auto_stories_outlined, 'Your next loaf starts here', 'Finish a bake to save its formula and actual events. A photo or perfect result is never required.'),
-      if (bakes.length > 1) OutlinedButton.icon(onPressed: () => _open(context, CompareScreen(store: store)), icon: const Icon(Icons.compare_arrows), label: const Text('Compare two bakes')),
+      if (bakes.length > 1) OutlinedButton.icon(onPressed: () => _open(context, JournalInsightsScreen(store: store)), icon: const Icon(Icons.compare_arrows), label: const Text('Compare two bakes')),
       for (final b in bakes) _Panel(children: [Text(b.text('name'), style: Theme.of(context).textTheme.titleLarge), Text('Finished ${_date(b.fields['completedAt'])}'), if (b.fields['rating'] != null) Text('Your rating: ${b.fields['rating']} / 5'), if (b.text('notes').isNotEmpty) Text(b.text('notes')), const SizedBox(height: 10), OutlinedButton(onPressed: () => _open(context, BakeDetail(store: store, id: b.id)), child: const Text('Open actual bake and formula'))]),
+      OutlinedButton.icon(onPressed:()=>_open(context,JournalBookScreen(store:store)),icon:const Icon(Icons.picture_as_pdf_outlined),label:const Text('Create a selected recipe book')),
       const _Section('Your data belongs to you'),
       OutlinedButton.icon(onPressed: () => _run(context, () async {final archive = await store.exportArchive(); if (context.mounted) _open(context, TextExport(title: 'Kitchen archive', text: archive));}), icon: const Icon(Icons.file_download_outlined), label: const Text('Export complete kitchen archive')),
     ]);
@@ -531,10 +538,11 @@ class KitchenScreen extends StatelessWidget {
     const _Notice('Local baking remains available without an account. Each network service requires its own consent and configuration.'),
     if (servicesBuilder != null) ListTile(leading: const Icon(Icons.cloud_outlined), title: const Text('Connected services'), subtitle: const Text('Account, sync, device capabilities and exports'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, servicesBuilder!(context))),
     for (final item in <(IconData, String, String, Widget)>[
+      (Icons.calculate_outlined, 'Formula & feed tools', 'Exact hydration, preferments, scaling and starter builds', const FormulaToolsScreen()),
       (Icons.school_outlined, 'Learn', 'Written techniques and practical exercises', LearnScreen(store: store)),
       (Icons.shopping_basket_outlined, 'Pantry & shopping', 'Ingredient lots, prices and a reusable shopping list', CollectionScreen(store: store, kind: 'pantry', title: 'Pantry & shopping')),
       (Icons.inventory_2_outlined, 'Discard inventory', 'Track amounts, storage and uses without a safety guarantee', CollectionScreen(store: store, kind: 'discard', title: 'Discard inventory')),
-      (Icons.factory_outlined, 'Production', 'Separate plans, quantities, labels and pickup notes', ProductionScreen(store: store)),
+      (Icons.factory_outlined, 'Production', 'Batches, equipment, exact shopping and pickup windows', production.ProductionScreen(store: store)),
       (Icons.group_outlined, 'Shared kitchen', 'Account and backend configuration required', ServiceStatusScreen(store: store, service: 'Shared kitchen')),
       (Icons.forum_outlined, 'Community', 'Opt-in sharing requires moderation and a connected account', ServiceStatusScreen(store: store, service: 'Community')),
       (Icons.chat_bubble_outline, 'Coach', 'Selected-context service; never changes your plan automatically', ServiceStatusScreen(store: store, service: 'Coach')),
@@ -551,7 +559,7 @@ class CollectionScreen extends StatelessWidget {
   Future<void> _add(BuildContext context, {AppRecord? original}) async {
     final f = await _form(context, original == null ? 'Add ${kind == 'discard' ? 'discard lot' : 'ingredient lot'}' : 'Update recorded stock', [
       _Field('name', 'Ingredient / lot name', initial: original?.text('name') ?? ''),
-      _Field('grams', 'Recorded amount (g)', initial: original?.text('grams') ?? '', numeric: true),
+      _Field('grams', 'Recorded amount (g)', initial: original?.text('grams', original?.text('quantity')??'') ?? '', numeric: true),
       _Field('price', 'Pack price (optional)', initial: original?.text('price') ?? '', numeric: true, required: false),
       _Field('currency', 'Currency', initial: original?.text('currency') ?? '', required: false),
       _Field('note', 'Storage, date, flour or allergy notes', initial: original?.text('note') ?? '', multiline: true, required: false),
@@ -562,23 +570,11 @@ class CollectionScreen extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedBuilder(animation: store, builder: (context, _) => Scaffold(appBar: AppBar(title: Text(title)), body: _Page(children: [
     FilledButton.icon(onPressed: () => _add(context), icon: const Icon(Icons.add), label: Text(kind == 'discard' ? 'Add discard lot' : 'Add ingredient lot')),
     const _Notice('Planned demand and actual consumption are separate. Stock changes only when you record it; planning does not mean an ingredient has been used.'),
-    for (final lot in store.records(kind)) _Panel(children: [Text(lot.text('name'), style: Theme.of(context).textTheme.titleLarge), Text(_grams(lot.fields['grams'])), if (lot.fields['price'] != null) Text('Recorded price ${lot.text('currency')} ${lot.fields['price']}'), if (lot.text('note').isNotEmpty) Text(lot.text('note')), Wrap(spacing: 8, children: [TextButton(onPressed: () => _add(context, original: lot), child: const Text('Update amount')), TextButton(onPressed: () => _run(context, () async {await store.save('shopping', {'name': lot.text('name'), 'checked': false});}, success: 'Added to shopping list.'), child: const Text('Add to shopping'))])]),
+    for (final lot in store.records(kind)) _Panel(children: [Text(lot.text('name'), style: Theme.of(context).textTheme.titleLarge), Text(_grams(lot.fields['grams']??lot.fields['quantity'])), if (lot.fields['price'] != null) Text('Recorded price ${lot.text('currency')} ${lot.fields['price']}'), if (lot.text('note').isNotEmpty) Text(lot.text('note')), Wrap(spacing: 8, children: [TextButton(onPressed: () => _add(context, original: lot), child: const Text('Update amount')), TextButton(onPressed: () => _run(context, () async {await store.save('shopping', {'name': lot.text('name'), 'checked': false});}, success: 'Added to shopping list.'), child: const Text('Add to shopping'))])]),
     const _Section('Shopping list'),
     OutlinedButton(onPressed: () async {final f = await _form(context, 'Add shopping item', const [_Field('name', 'Ingredient and amount')]); if (f != null && context.mounted) await _run(context, () async {await store.save('shopping', {'name': f['name'], 'checked': false});});}, child: const Text('Add an item')),
     for (final item in store.records('shopping')) CheckboxListTile(contentPadding: EdgeInsets.zero, title: Text(item.text('name')), value: item.flag('checked'), onChanged: (v) => _run(context, () async {await store.save('shopping', {...item.fields, 'checked': v}, id: item.id);})),
     if (store.records('shopping').isNotEmpty) TextButton(onPressed: () async {final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(title: const Text('Remove checked shopping items?'), content: const Text('Unchecked items and pantry lots will stay.'), actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Keep them')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Remove checked'))])); if (yes == true && context.mounted) await _run(context, () async {for (final item in store.records('shopping').where((i) => i.flag('checked')).toList()) {await store.remove(item.id);}});}, child: const Text('Remove checked items')),
-  ])));
-}
-class ProductionScreen extends StatelessWidget {
-  const ProductionScreen({super.key, required this.store});
-  final AppStore store;
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(animation: store, builder: (context, _) => Scaffold(appBar: AppBar(title: const Text('Production workspace')), body: _Page(children: [
-    const _Notice('For gifting, events and home production. This is quantity and packing planning, not customer checkout or a food-business compliance certificate.'),
-    FilledButton.icon(onPressed: () async {final f = await _form(context, 'Plan a production run', const [_Field('name', 'Run / event name'), _Field('product', 'Product'), _Field('quantity', 'Planned quantity', initial: '12', numeric: true), _Field('pickup', 'Pickup / gifting window'), _Field('notes', 'Packing and allergy notes', multiline: true, required: false)], explanation: 'This records a production plan. Use the bake planner for executable recipe and oven-reservation checks; an untested quantity plan is not an accepted resource schedule.'); if (f != null && context.mounted) await _run(context, () async {await store.save('production', {...f, 'quantity': double.parse(f['quantity']!), 'state': 'draft', 'actualYield': null});});}, icon: const Icon(Icons.add), label: const Text('Create a production run')),
-    for (final run in store.records('production')) _Panel(children: [Text(run.text('name'), style: Theme.of(context).textTheme.titleLarge), Text('${run.text('product')} · planned ${run.fields['quantity']}'), Text('Pickup: ${run.text('pickup')}'), Text('Actual yield: ${run.text('actualYield', 'Not recorded')}'), Text(run.text('notes')), Wrap(spacing: 8, children: [OutlinedButton(onPressed: () async {final f = await _form(context, 'Record actual yield', [_Field('yield', 'Actual packed quantity', initial: run.text('actualYield'), numeric: true)]); if (f != null && context.mounted) await _run(context, () async {await store.save('production', {...run.fields, 'actualYield': double.parse(f['yield']!), 'state': 'packed'}, id: run.id);});}, child: const Text('Record actual yield')), OutlinedButton(onPressed: () => _open(context, TextExport(title: 'Pack sheet and labels', text: '${run.text('name')}\n${run.text('product')}\nPlanned: ${run.fields['quantity']}\nActual packed: ${run.text('actualYield', 'Unknown')}\nPickup: ${run.text('pickup')}\n${run.text('notes')}\n\nConfirm ingredients, allergens and local labelling requirements before distributing food.')), child: const Text('Open pack sheet'))])]),
-    const _Section('Oven and dough planning'),
-    OutlinedButton(onPressed: () => _open(context, PlanScreen(store: store, standalone: true)), child: const Text('Plan a recipe with resource checks')),
   ])));
 }
 
@@ -754,10 +750,10 @@ class _ObservationCaptureScreenState extends State<ObservationCaptureScreen> {
     super.dispose();
   }
   Widget numberField(TextEditingController controller,String label,{bool positive=false}) => Padding(padding:const EdgeInsets.only(bottom:16),child:TextFormField(controller:controller,decoration:InputDecoration(labelText:label),keyboardType:const TextInputType.numberWithOptions(decimal:true,signed:true),validator:(v){if(v==null||v.trim().isEmpty)return null;final number=double.tryParse(v);if(number==null||!number.isFinite)return 'Enter a finite number or leave unknown.';if(positive&&number<=0)return 'A measured height must be greater than zero.';if(controller==rise&&number<0)return 'Rise cannot be negative; describe falling dough in your note.';return null;}));
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(widget.starter?'Record starter observation':'Record dough observation')),body:Form(key:formKey,child:_Page(children:[
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(widget.starter?'Record starter observation':'Record dough observation')),body:Form(key:formKey,child:_Page(scrollKey: const ValueKey('observation-scroll'), children:[
     const _Notice('Log what you can see. Time and photos cannot certify readiness or food safety. Unknown measurements stay empty.'),
     numberField(temperature,'Temperature (°C, optional)'),
-    if(widget.starter)...[numberField(height,'Measured height (mm, optional)',positive:true),numberField(baseline,'Starting height (mm, optional)',positive:true),DropdownButtonFormField<String>(initialValue:peak,decoration:const InputDecoration(labelText:'Peak observation'),items:const [DropdownMenuItem(value:'unknown',child:Text('Peak not observed / unknown')),DropdownMenuItem(value:'not_yet',child:Text('Not yet peaked')),DropdownMenuItem(value:'observed',child:Text('I observed the peak')),DropdownMenuItem(value:'falling',child:Text('Falling after rise'))],onChanged:busy?null:(v)=>setState(()=>peak=v??'unknown')),const SizedBox(height:16)]else numberField(rise,'Measured rise (%, optional)'),
+    if(widget.starter)...[numberField(height,'Measured height (mm, optional)',positive:true),numberField(baseline,'Starting height (mm, optional)',positive:true),DropdownButtonFormField<String>(initialValue:peak,isExpanded:true,itemHeight:null,decoration:const InputDecoration(labelText:'Peak observation',helperText:'Choose Unknown if the peak was missed. No exact peak is inferred.',helperMaxLines:3),items:const [DropdownMenuItem(value:'unknown',child:Text('Unknown / missed')),DropdownMenuItem(value:'not_yet',child:Text('Not yet peaked')),DropdownMenuItem(value:'observed',child:Text('Observed peak')),DropdownMenuItem(value:'falling',child:Text('Falling'))],onChanged:busy?null:(v)=>setState(()=>peak=v??'unknown')),const SizedBox(height:16)]else numberField(rise,'Measured rise (%, optional)'),
     TextFormField(controller:notes,decoration:const InputDecoration(labelText:'What can you see or feel? (optional)'),minLines:3,maxLines:7),
     const _Section('Optional private photo'),
     const Text('Only your explicit camera or library choice opens the picker. A resized copy is kept locally with photo metadata removed. It is not uploaded for analysis or sharing.'),

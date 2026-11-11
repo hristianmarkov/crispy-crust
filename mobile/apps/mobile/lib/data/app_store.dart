@@ -33,7 +33,7 @@ abstract class AppStore extends ChangeNotifier {
   Future<void> remove(String id);
   Future<void> setPreference(String key, dynamic value);
   dynamic preference(String key, [dynamic fallback]);
-  Future<AppRecord> createBake(Map<String, dynamic> recipe, {double scale = 1, DateTime? serveAt});
+  Future<AppRecord> createBake(Map<String, dynamic> recipe, {double scale = 1, DateTime? serveAt, DateTime? startAt, Map<String,dynamic>? expectedSchedule});
   Future<void> completeStep(String bakeId, {DateTime? occurredAt, int? expectedIndex});
   Future<void> logFeed(String starterId, {required double seed, required double flour, required double water, DateTime? occurredAt});
   Future<String> exportArchive();

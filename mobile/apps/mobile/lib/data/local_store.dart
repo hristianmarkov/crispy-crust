@@ -100,19 +100,20 @@ class LocalAppStore extends AppStore {
       final feedId=_uuid.v4();
       await _write('feed',{'starterId':starterId,'name':starter.text('name'),'seed':seed,'flour':flour,'water':water,'occurredAt':at.toUtc().toIso8601String(),'total':total},feedId,eventType:'StarterFed',occurredAt:at);
       await _write('starter',{...starter.fields,'mass':total,'hydration':(Rational.fromNum(100)*(seedWater+Rational.fromNum(water))/(seedFlour+Rational.fromNum(flour))).toDouble(),'lastFeedAt':at.toUtc().toIso8601String(),'lastSeed':seed,'lastFlour':flour,'lastWater':water},starterId,eventType:'StarterProjectionUpdated',occurredAt:at);
-      if(oldMass is num && oldMass>seed)await _write('discard',{'starterId':starterId,'quantity':oldMass-seed,'createdAt':at.toUtc().toIso8601String(),'storage':'unknown','safetyStatus':'not_assessed'},_uuid.v4(),eventType:'DiscardRecorded',occurredAt:at);
+      if(oldMass is num && oldMass>seed)await _write('discard',{'starterId':starterId,'name':'${starter.text('name')} discard','grams':oldMass-seed,'quantity':oldMass-seed,'createdAt':at.toUtc().toIso8601String(),'storage':'unknown','safetyStatus':'not_assessed'},_uuid.v4(),eventType:'DiscardRecorded',occurredAt:at);
     });
     await load();
     } finally { _feedLocks.remove(starterId); }
   }
-  @override Future<AppRecord> createBake(Map<String,dynamic> recipe,{double scale=1,DateTime? serveAt}) async {
+  @override Future<AppRecord> createBake(Map<String,dynamic> recipe,{double scale=1,DateTime? serveAt,DateTime? startAt,Map<String,dynamic>? expectedSchedule}) async {
     if(_creatingBake)throw StateError('Another plan is being saved. Review its reservations and try again.');
     _creatingBake=true;
     try {
     if(!scale.isFinite||scale<=0||scale>1)throw const FormatException('A larger batch needs explicit oven-load and pan validation. For now, plan separate named batches at the original yield or smaller.');
     final steps=_maps(recipe['steps']);
     if(steps.isEmpty)throw const FormatException('This recipe needs an execution method before baking.');
-    final actualCandidate=planRecipe(recipe,records('availability'),records('bake'),{'oven':(preference('ovenCapacity',1) as num).toInt()},serveAt:serveAt);
+    final actualCandidate=planRecipe(recipe,records('availability'),[...records('bake'),...records('production')],{'oven':(preference('ovenCapacity',1) as num).toInt()},serveAt:serveAt,startAt:startAt);
+    if(expectedSchedule!=null&&canonicalJson(expectedSchedule)!=canonicalJson(actualCandidate.toJson()))throw StateError('The schedule changed after review. Generate and review the current plan before accepting it.');
     final scheduledSteps=steps.map((s){final task=actualCandidate.task(s['id'] as String);return {...s,'plannedStart':task.start.toIso8601String(),'plannedEnd':task.end.toIso8601String()};}).toList();
     final ingredients=_maps(recipe['ingredients']).map((i)=>{...i,'grams':((i['grams']??i['massG']??0) as num)*scale}).toList();
     return await save('bake',{'name':recipe['title']??recipe['name']??'My bake','recipeId':recipe['id'],'recipeVersion':recipe['version']??1,'recipeSnapshot':recipe,'steps':scheduledSteps,'schedule':actualCandidate.toJson(),'ingredients':ingredients,'scale':scale,'stepIndex':0,'status':'planned','state':'planned','startAt':actualCandidate.startsAt.toIso8601String(),'startedAt':null,'serveAt':serveAt?.toUtc().toIso8601String(),'validationStatus':recipe['status']??'experimental','completedSteps':<Map<String,dynamic>>[]});
@@ -318,7 +319,7 @@ class LocalAppStore extends AppStore {
       }
       await db.transaction(() async {
         for(final table in ['outbox','events','records','preferences','sync_cursors'])await db.customStatement('DELETE FROM $table');
-        for(final table in ['sync_conflicts','sync_requests','sync_bindings','sync_remote_audit','sync_namespace']) {
+        for(final table in ['sync_conflicts','sync_requests','sync_bindings','sync_remote_audit','sync_namespace','sync_local_only']) {
           final exists=await db.customSelect('SELECT name FROM sqlite_master WHERE type=\'table\' AND name=?',variables:[Variable.withString(table)]).getSingleOrNull();
           if(exists!=null)await db.customStatement('DELETE FROM $table');
         }

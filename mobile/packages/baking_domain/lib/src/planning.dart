@@ -176,11 +176,16 @@ final class PlanningEngine {
     return;
    }
    final step=traversal[index];
+   final propagated=_propagate(order,request,placed);
+   if(propagated==null)return;
+   final bounds=propagated[step.id]!;
    final actual=request.completed[step.id];
    final durations=actual!=null?[actual.duration]:_durationOptions(step,placed,order,request);
    for(final duration in durations) {
-    var lo=request.horizon.start;
-    var hi=request.horizon.end.subtract(duration);
+    var lo=DateTime.fromMicrosecondsSinceEpoch(bounds.startLo,isUtc:true);
+    var hi=DateTime.fromMicrosecondsSinceEpoch(bounds.startHi,isUtc:true);
+    lo=later(lo,DateTime.fromMicrosecondsSinceEpoch(bounds.endLo,isUtc:true).subtract(duration));
+    hi=earlier(hi,DateTime.fromMicrosecondsSinceEpoch(bounds.endHi,isUtc:true).subtract(duration));
     if(step.startWindow!=null){lo=later(lo,step.startWindow!.start);hi=earlier(hi,step.startWindow!.end);}
     if(backward) {
      final children=order.where((s)=>s.dependencies.contains(step.id));
@@ -241,6 +246,43 @@ final class PlanningEngine {
   final result=solve(request);
   return ReplanProposal(expectedRevision,previous,result,[for(final c in result.candidates)[for(final t in c.tasks)if(previous.tasks.any((p)=>p.stepId==t.stepId&&(p.start!=t.start||p.end!=t.end)))t.stepId]]);
  }
+ Map<String,_TimingBounds>? _propagate(List<RecipeStep> order,PlanningRequest request,Map<String,ScheduleTask> placed) {
+  final bounds=<String,_TimingBounds>{};
+  final actuals={...request.completed,...placed};
+  final a=request.horizon.start.microsecondsSinceEpoch,z=request.horizon.end.microsecondsSinceEpoch,anchor=request.anchor.microsecondsSinceEpoch;
+  for(final step in order){
+   final actual=actuals[step.id];
+   final min=(actual?.duration??step.minimumDuration).inMicroseconds,max=(actual?.duration??step.maximumDuration).inMicroseconds;
+   final b=_TimingBounds(a,z-min,a+min,z,min,max);
+   if(actual!=null){b.startLo=actual.start.microsecondsSinceEpoch;b.startHi=b.startLo;b.endLo=actual.end.microsecondsSinceEpoch;b.endHi=b.endLo;}
+   if(step.startWindow!=null){b.raiseStart(step.startWindow!.start.microsecondsSinceEpoch);b.lowerStart(step.startWindow!.end.microsecondsSinceEpoch);}
+   if(request.direction==PlanningDirection.forward&&step.dependencies.isEmpty)b.raiseStart(anchor);
+   if(request.direction==PlanningDirection.backward&&!order.any((s)=>s.dependencies.contains(step.id)))b.lowerEnd(anchor);
+   bounds[step.id]=b;
+  }
+  // Interval propagation also carries a later load's oven constraint through
+  // an earlier load's bake/cool/ready branch. No arbitrary dough hold is added.
+  for(var pass=0;pass<order.length*2+2;pass++){
+   var changed=false;
+   for(final step in order){
+    final b=bounds[step.id]!;
+    changed=b.raiseEnd(b.startLo+b.minimum)||changed;
+    changed=b.lowerEnd(b.startHi+b.maximum)||changed;
+    changed=b.raiseStart(b.endLo-b.maximum)||changed;
+    changed=b.lowerStart(b.endHi-b.minimum)||changed;
+    for(final dep in step.dependencies){
+     final parent=bounds[dep]!,gap=step.maxWaitAfterDependencies.inMicroseconds;
+     changed=b.raiseStart(parent.endLo)||changed;
+     changed=b.lowerStart(parent.endHi+gap)||changed;
+     changed=parent.raiseEnd(b.startLo-gap)||changed;
+     changed=parent.lowerEnd(b.startHi)||changed;
+    }
+   }
+   if(bounds.values.any((b)=>b.startLo>b.startHi||b.endLo>b.endHi||b.startLo<a||b.endHi>z))return null;
+   if(!changed)break;
+  }
+  return bounds;
+ }
  List<Duration> _durationOptions(RecipeStep step,Map<String,ScheduleTask> placed,List<RecipeStep> order,PlanningRequest request) {
   final durations=<Duration>{step.nominalDuration,step.minimumDuration,step.maximumDuration};
   if(step.variable){
@@ -290,4 +332,14 @@ final class ReplanProposal {
  final List<List<String>> changedStepIds;
  const ReplanProposal(this.expectedRevision,this.previous,this.result,this.changedStepIds);
  void requireCurrentRevision(int revision){if(revision!=expectedRevision)throw const DomainException('REVISION_CONFLICT','Bake changed; generate a new proposal.');}
+}
+
+final class _TimingBounds {
+ int startLo,startHi,endLo,endHi;
+ final int minimum,maximum;
+ _TimingBounds(this.startLo,this.startHi,this.endLo,this.endHi,this.minimum,this.maximum);
+ bool raiseStart(int n){if(n<=startLo)return false;startLo=n;return true;}
+ bool lowerStart(int n){if(n>=startHi)return false;startHi=n;return true;}
+ bool raiseEnd(int n){if(n<=endLo)return false;endLo=n;return true;}
+ bool lowerEnd(int n){if(n>=endHi)return false;endHi=n;return true;}
 }

@@ -39,10 +39,17 @@ final class StarterEstimator {
  final Duration maximumHistoryAge;
  final double temperatureToleranceC;
  const StarterEstimator({this.minimumComparableRecords=5,this.maximumHistoryAge=const Duration(days:180),this.temperatureToleranceC=2});
+ /// No reviewed fallback is invented: insufficient history returns null.
+ PeakEstimate? estimatePersonalized({required FeedContext context,required DateTime fedAt,required DateTime now,required List<PeakRecord> history}) {
+  // The existing method's fallback is never exposed from this API. Zero bounds
+  // are unused for an eligible empirical estimate, not published care advice.
+  final result=estimate(context:context,fedAt:fedAt,now:now,history:history,reviewedEarliest:Duration.zero,reviewedLatest:Duration.zero);
+  return result.personalized?result:null;
+ }
  PeakEstimate estimate({required FeedContext context,required DateTime fedAt,required DateTime now,required List<PeakRecord> history,required Duration reviewedEarliest,required Duration reviewedLatest}) {
   if(minimumComparableRecords<5||temperatureToleranceC<0||!fedAt.isUtc||!now.isUtc||reviewedEarliest.isNegative||reviewedLatest<reviewedEarliest)throw ArgumentError('Invalid estimate bounds or calibration threshold');
   final seen=<String>{};
-  final comparable=history.where((r)=>seen.add(r.id)&&r.status==PeakStatus.observed&&r.peakAt!=null&&!r.fedAt.isAfter(fedAt)&&!r.peakAt!.isAfter(now)&&now.difference(r.fedAt)<=maximumHistoryAge&&context.comparableTo(r.context,temperatureToleranceC:temperatureToleranceC)).toList()..sort((a,b)=>a.peakAt!.difference(a.fedAt).compareTo(b.peakAt!.difference(b.fedAt)));
+  final comparable=history.where((r)=>seen.add(r.id)&&r.status==PeakStatus.observed&&r.peakAt!=null&&r.fedAt.isBefore(fedAt)&&!r.peakAt!.isAfter(now)&&now.difference(r.fedAt)<=maximumHistoryAge&&context.comparableTo(r.context,temperatureToleranceC:temperatureToleranceC)).toList()..sort((a,b)=>a.peakAt!.difference(a.fedAt).compareTo(b.peakAt!.difference(b.fedAt)));
   final personalized=comparable.length>=minimumComparableRecords;
   var low=reviewedEarliest,high=reviewedLatest;
   var nominal=Duration(microseconds:(low.inMicroseconds+high.inMicroseconds)~/2);

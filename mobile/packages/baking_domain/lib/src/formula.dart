@@ -198,5 +198,31 @@ final class PhysicalFormula {
  Rational? get hydration=>totalFlour==Rational.zero?null:totalWater/totalFlour;
  PhysicalFormula scale(Rational factor){if(factor<=Rational.zero)throw ArgumentError('Scale must be positive');return PhysicalFormula(ingredients.map((i)=>i.scale(factor)).toList());}
  PhysicalFormula toDoughWeight(Rational target){if(target<=Rational.zero||totalDough<=Rational.zero)throw ArgumentError('Target and original dough weights must be positive');return scale(target/totalDough);}
+ PhysicalWeighOut roundForScale({num incrementGrams=1}) {
+  final increment=Rational.fromNum(incrementGrams);
+  if(increment<=Rational.zero)throw ArgumentError('Scale increment must be positive');
+  final rows={for(final i in ingredients)i.id:i.grams.roundTo(increment)};
+  final target=totalDough.roundTo(increment);
+  if(target<=Rational.zero&&totalDough>Rational.zero)throw const DomainException('ROUNDING_UNSUPPORTED','Use a more precise scale increment for this batch.');
+  final residual=target-rows.values.fold(Rational.zero,(a,b)=>a+b);
+  String? correction;
+  if(residual!=Rational.zero){
+   final eligible=[...ingredients.where((i)=>i.grams>Rational.zero&&i.waterGrams==i.grams&&i.flourGrams==Rational.zero),...ingredients.where((i)=>i.grams>Rational.zero&&i.flourGrams==i.grams&&i.waterGrams==Rational.zero)];
+   for(final row in eligible){if(rows[row.id]!+residual>=Rational.zero){correction=row.id;break;}}
+   if(correction==null)throw const DomainException('ROUNDING_UNSUPPORTED','No pure flour or water row can absorb this rounding residual. Use a more precise scale.');
+   rows[correction]=rows[correction]!+residual;
+  }
+  var flour=Rational.zero,water=Rational.zero;
+  for(final original in ingredients){if(original.grams==Rational.zero)continue;final ratio=rows[original.id]!/original.grams;flour+=original.flourGrams*ratio;water+=original.waterGrams*ratio;}
+  return PhysicalWeighOut(Map.unmodifiable(rows),target,residual,correction,flour>Rational.zero?water/flour:null);
+ }
  Map<String,dynamic> toJson()=>{'ingredients':ingredients.map((i)=>i.toJson()).toList(),'totalDough':totalDough.toJson(),'totalFlour':totalFlour.toJson(),'totalWater':totalWater.toJson(),'hydration':hydration?.toJson()};
+}
+
+final class PhysicalWeighOut {
+ final Map<String,Rational> ingredients;
+ final Rational totalDough,roundingResidual;
+ final String? residualIngredient;
+ final Rational? roundedHydration;
+ const PhysicalWeighOut(this.ingredients,this.totalDough,this.roundingResidual,this.residualIngredient,this.roundedHydration);
 }
