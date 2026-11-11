@@ -11,7 +11,7 @@ bash mobile/scripts/bootstrap.sh
 cd mobile/apps/mobile
 flutter pub get
 dart run flutter_launcher_icons
-flutter run
+flutter run --dart-define-from-file=../../config/development.json
 ```
 
 Bootstrap creates missing iOS/Android/Linux runners without overwriting app source or package configuration, applies native permissions/bridges, and copies the canonical content catalogue. The consumer product is not built for Flutter Web. Linux is a development/test surface.
@@ -53,6 +53,6 @@ Cloud transport and managed storage encryption are not end-to-end encryption. Na
 
 ## External setup and release gates
 
-The selected Supabase account is **Multiple ones**, organisation **Markov**. Its existing CrispyCrust project serves the website waitlist. Creation of a separate app development project was quoted at $0/month but rejected because the owner has reached the two-project free limit. No existing project was paused, deleted or repurposed. New app deployment awaits capacity.
+The selected Supabase account is **Multiple ones**, organisation **Markov**. After a separate project hit the free-project limit, the owner explicitly authorised using the existing CrispyCrust project (`wpxeuwknbuxbtkkkmcsm`). App data uses `cc_` tables and `app_private`; the legacy waitlist tables/function are preserved. Both app migrations have been applied; all 19 app tables have RLS, the media bucket is private, and security advisors report no new findings. `config/development.json` contains only public client identifiers. Never use it as an authorisation boundary or put server secrets there.
 
 Other external gates include Apple/Google organisation accounts/signing, OAuth/email setup, privacy/support contact and markets, production model/provider configuration and spend approval, final commercial products, physical iOS/Android/watch/probe checks, recipe trials/media rights, and moderation/support ownership. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md). Unconfigured providers must fail visibly; no fake successful purchase, upload or analysis is acceptable.

@@ -1,6 +1,6 @@
 import type { MediaService } from "./media.ts";
 import type { BillingService } from "./billing.ts";
-/** Pure Web API router; runtime bootstrap is in index.ts. No service-role client. */
+/** Web API router. Core RPCs forward caller auth; privileged adapters are server-only. */
 export type Json = Record<string, unknown>;
 export class ApiError extends Error {
   constructor(

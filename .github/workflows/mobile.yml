@@ -69,7 +69,7 @@ jobs:
           if-no-files-found: ignore
       - name: Android debug build
         working-directory: mobile/apps/mobile
-        run: flutter build apk --debug
+        run: flutter build apk --debug --dart-define-from-file=../../config/development.json
       - name: Wear OS debug build
         working-directory: mobile/apps/mobile/android
         run: ./gradlew :wear:assembleDebug
@@ -101,7 +101,7 @@ jobs:
         run: bash mobile/scripts/bootstrap.sh
       - name: Compile iOS without signing
         working-directory: mobile/apps/mobile
-        run: flutter pub get && dart run flutter_launcher_icons && flutter build ios --debug --no-codesign
+        run: flutter pub get && dart run flutter_launcher_icons && flutter build ios --debug --no-codesign --dart-define-from-file=../../config/development.json
       - name: Native companion model tests
         working-directory: mobile/native/apple
         run: swift test

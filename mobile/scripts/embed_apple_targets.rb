@@ -41,6 +41,9 @@ def add_target(project, name, platform, deployment, files, plist_path, identifie
   target.build_configurations.each do |config|
     config.build_settings.merge!({
       'PRODUCT_BUNDLE_IDENTIFIER' => identifier,
+      'PRODUCT_NAME' => name, 'PRODUCT_MODULE_NAME' => name,
+      'EXECUTABLE_NAME' => '$(PRODUCT_NAME)',
+      'WRAPPER_EXTENSION' => platform == :watchos ? 'app' : 'appex',
       'SWIFT_VERSION' => '5.0', 'SWIFT_STRICT_CONCURRENCY' => 'minimal',
       'GENERATE_INFOPLIST_FILE' => 'NO',
       'INFOPLIST_FILE' => Pathname.new(plist_path).relative_path_from(Pathname.new(project.project_dir)).to_s,
@@ -94,5 +97,10 @@ plist(runner_entitlements, existing)
 plist(widget_entitlements, {'com.apple.security.application-groups' => [group_identifier]})
 runner.build_configurations.each { |config| config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'Runner/CrispyRunner.entitlements' }
 widget.build_configurations.each { |config| config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'RunnerCompanions/Widgets/CrispyWidgets.entitlements' }
+[watch, widget].each do |target|
+  target.build_configurations.each do |config|
+    abort "Missing companion PRODUCT_NAME for #{target.name}/#{config.name}" if config.build_settings['PRODUCT_NAME'].to_s.empty?
+  end
+end
 project.save
 puts 'Embedded CrispyWatch and CrispyWidgets targets into Runner with explicit sources, plists, dependencies and copy phases.'

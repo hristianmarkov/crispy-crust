@@ -27,7 +27,7 @@ This is an honest implementation ledger, not a launch certificate. The approved 
 
 ## Provisioning and ownership blockers
 
-A separate app project is required. Markov's two free slots are occupied by AirBloom and the website waitlist. The new project could not be created; owner action is needed to increase capacity or free a slot. This is not an approval-review rejection and no existing resources were modified.
+Owner-approved infrastructure revision: use the existing CrispyCrust project after the separate-project free quota was reached. Both app migrations were applied under `cc_`/`app_private`; 19 app tables have RLS and the private media bucket is verified. Waitlist records/functions are preserved. Edge deployment/Auth/provider tests are separate acceptance steps; no production-readiness claim follows from schema application.
 
 Real iOS/Android signing, storefront agreements/prices/markets, OAuth sender configuration, AI/model keys, privacy/support identity, real kitchen trials, original process media, probe/watch hardware and operational staff remain external dependencies. No secret credentials are committed. The marketing-only site change is not deployed and needs its verified privacy/deletion contact before publication.
 

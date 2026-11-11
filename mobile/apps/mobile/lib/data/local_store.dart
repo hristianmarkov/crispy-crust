@@ -115,7 +115,7 @@ class LocalAppStore extends AppStore {
     final actualCandidate=planRecipe(recipe,records('availability'),records('bake'),{'oven':(preference('ovenCapacity',1) as num).toInt()},serveAt:serveAt);
     final scheduledSteps=steps.map((s){final task=actualCandidate.task(s['id'] as String);return {...s,'plannedStart':task.start.toIso8601String(),'plannedEnd':task.end.toIso8601String()};}).toList();
     final ingredients=_maps(recipe['ingredients']).map((i)=>{...i,'grams':((i['grams']??i['massG']??0) as num)*scale}).toList();
-    return save('bake',{'name':recipe['title']??recipe['name']??'My bake','recipeId':recipe['id'],'recipeVersion':recipe['version']??1,'recipeSnapshot':recipe,'steps':scheduledSteps,'schedule':actualCandidate.toJson(),'ingredients':ingredients,'scale':scale,'stepIndex':0,'status':'planned','state':'planned','startAt':actualCandidate.startsAt.toIso8601String(),'startedAt':null,'serveAt':serveAt?.toUtc().toIso8601String(),'validationStatus':recipe['status']??'experimental','completedSteps':<Map<String,dynamic>>[]});
+    return await save('bake',{'name':recipe['title']??recipe['name']??'My bake','recipeId':recipe['id'],'recipeVersion':recipe['version']??1,'recipeSnapshot':recipe,'steps':scheduledSteps,'schedule':actualCandidate.toJson(),'ingredients':ingredients,'scale':scale,'stepIndex':0,'status':'planned','state':'planned','startAt':actualCandidate.startsAt.toIso8601String(),'startedAt':null,'serveAt':serveAt?.toUtc().toIso8601String(),'validationStatus':recipe['status']??'experimental','completedSteps':<Map<String,dynamic>>[]});
     } finally { _creatingBake=false; }
   }
   @override Future<void> completeStep(String bakeId,{DateTime? occurredAt,int? expectedIndex}) async {
