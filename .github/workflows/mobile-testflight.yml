@@ -11,7 +11,7 @@ on:
       build_number:
         description: Unused Apple build number
         required: true
-        default: '9'
+        default: '10'
 permissions:
   contents: read
 concurrency:
@@ -25,7 +25,7 @@ jobs:
     environment: mobile-release
     env:
       CRISPY_APP_VERSION: ${{ inputs.version || '1.0' }}
-      CRISPY_APP_BUILD_NUMBER: ${{ inputs.build_number || '9' }}
+      CRISPY_APP_BUILD_NUMBER: ${{ inputs.build_number || '10' }}
       FASTLANE_OPT_OUT_USAGE: 'true'
       FASTLANE_SKIP_UPDATE_CHECK: 'true'
     steps:

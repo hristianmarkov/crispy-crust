@@ -3,6 +3,7 @@
 require 'xcodeproj'
 require 'fileutils'
 require 'json'
+require 'rexml/document'
 require_relative 'apple_phase_order'
 
 mobile = File.expand_path('..', __dir__)
@@ -21,7 +22,21 @@ File.write(File.join(launch_assets, 'Contents.json'), JSON.pretty_generate({
   'images' => [{'idiom' => 'universal', 'filename' => 'LaunchImage.png', 'scale' => '1x'}],
   'info' => {'author' => 'xcode', 'version' => 1}
 }))
-FileUtils.cp(File.join(mobile, 'scripts/templates/ios_launchscreen.storyboard'), File.join(ios, 'Runner/Base.lproj/LaunchScreen.storyboard'))
+launch_storyboard = File.join(ios, 'Runner/Base.lproj/LaunchScreen.storyboard')
+launch_document = REXML::Document.new(File.read(launch_storyboard))
+launch_image = REXML::XPath.first(launch_document, "//imageView[@image='LaunchImage']")
+abort 'Flutter launch image view is missing.' unless launch_image
+launch_image.attributes['contentMode'] = 'scaleAspectFit'
+launch_constraints = launch_image.elements['constraints'] || launch_image.add_element('constraints')
+{'width' => 'ccW-01-LaU', 'height' => 'ccH-01-LaU'}.each do |attribute, identifier|
+  constraint = launch_constraints.elements["constraint[@firstAttribute='#{attribute}']"] || launch_constraints.add_element('constraint')
+  constraint.add_attributes({'firstAttribute' => attribute, 'constant' => '128', 'id' => identifier})
+end
+launch_background = REXML::XPath.first(launch_document, "//view[@key='view']/color[@key='backgroundColor']")
+launch_background&.add_attributes({'red' => '0.9647058824', 'green' => '0.9529411765', 'blue' => '0.9215686275'})
+launch_resource = REXML::XPath.first(launch_document, "//resources/image[@name='LaunchImage']")
+launch_resource&.add_attributes({'width' => '1024', 'height' => '1024'})
+File.open(launch_storyboard, 'w') { |file| launch_document.write(file, 2) }
 
 def plist(path, values)
   Xcodeproj::Plist.write_to_path(values, path)
