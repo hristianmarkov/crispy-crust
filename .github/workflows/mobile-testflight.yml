@@ -11,7 +11,7 @@ on:
       build_number:
         description: Unused Apple build number
         required: true
-        default: '10'
+        default: '11'
 permissions:
   contents: read
 concurrency:
@@ -25,7 +25,7 @@ jobs:
     environment: mobile-release
     env:
       CRISPY_APP_VERSION: ${{ inputs.version || '1.0' }}
-      CRISPY_APP_BUILD_NUMBER: ${{ inputs.build_number || '10' }}
+      CRISPY_APP_BUILD_NUMBER: ${{ inputs.build_number || '11' }}
       FASTLANE_OPT_OUT_USAGE: 'true'
       FASTLANE_SKIP_UPDATE_CHECK: 'true'
     steps:
@@ -109,6 +109,9 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH" "$HOME/Library/Keychains/login.keychain-db"
       - name: Generate configured native targets
         run: bash mobile/scripts/bootstrap.sh
+      - name: Validate launch storyboard before app compilation
+        run: |
+          xcrun ibtool --errors --warnings --notices --sdk "$(xcrun --sdk iphoneos --show-sdk-path)" --minimum-deployment-target 15.0 --target-device iphone --target-device ipad --compile "$CRISPY_SIGNING_DIR/LaunchScreen.storyboardc" mobile/apps/mobile/ios/Runner/Base.lproj/LaunchScreen.storyboard
       - name: Configure release signing
         run: ruby mobile/scripts/configure_ios_release.rb
       - name: Build signed phone, watch and widget archive
@@ -117,13 +120,21 @@ jobs:
           flutter pub get
           dart run flutter_launcher_icons
           flutter build ipa --release --build-name="$CRISPY_APP_VERSION" --build-number="$CRISPY_APP_BUILD_NUMBER" --dart-define-from-file="$CRISPY_CRUST_BUILD_CONFIG" --export-options-plist="$CRISPY_IOS_EXPORT_OPTIONS"
-      - name: Validate exported bundle versions and watch icon
+      - name: Validate exported bundle versions, watch icon and privacy manifests
         run: |
           python3 - <<'PY'
           import pathlib, plistlib, zipfile
           ipa = next(pathlib.Path('mobile/apps/mobile/build/ios/ipa').glob('*.ipa'))
           with zipfile.ZipFile(ipa) as package:
               main = plistlib.loads(package.read('Payload/Runner.app/Info.plist'))
+              for root in ['Payload/Runner.app', 'Payload/Runner.app/PlugIns/CrispyWidgets.appex']:
+                  privacy = plistlib.loads(package.read(root + '/PrivacyInfo.xcprivacy'))
+                  if privacy.get('NSPrivacyTracking') is not False:
+                      raise SystemExit('Unexpected tracking declaration: ' + root)
+                  if not any(row.get('NSPrivacyAccessedAPIType') == 'NSPrivacyAccessedAPICategoryUserDefaults'
+                             and '1C8F.1' in row.get('NSPrivacyAccessedAPITypeReasons', [])
+                             for row in privacy.get('NSPrivacyAccessedAPITypes', [])):
+                      raise SystemExit('App Group defaults reason is missing: ' + root)
               for bundle in ['Watch/CrispyWatch.app', 'PlugIns/CrispyWidgets.appex']:
                   root = 'Payload/Runner.app/' + bundle
                   info = plistlib.loads(package.read(root + '/Info.plist'))
@@ -133,7 +144,7 @@ jobs:
                   if bundle.startswith('Watch/'):
                       if not info.get('CFBundleIconName') or root + '/Assets.car' not in package.namelist():
                           raise SystemExit('Watch app icon catalogue is missing from the signed IPA.')
-          print('Signed phone, watch and widget versions match; watch icon catalogue is present.')
+          print('Signed bundle versions, watch icon and phone/widget privacy manifests are valid.')
           PY
       - uses: actions/upload-artifact@v4
         with:

@@ -152,6 +152,19 @@ plist(runner_entitlements, existing)
 plist(widget_entitlements, {'com.apple.security.application-groups' => [group_identifier]})
 runner.build_configurations.each { |config| config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'Runner/CrispyRunner.entitlements' }
 widget.build_configurations.each { |config| config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'RunnerCompanions/Widgets/CrispyWidgets.entitlements' }
+# Both native implementations read/write the same App Group task snapshot.
+# 1C8F.1 declares that local shared-defaults use; store privacy labels separately
+# disclose optional account, photo, coach, purchase and analytics collection.
+privacy_group = project.main_group.find_subpath('CrispyPrivacy', true)
+[[runner, File.join(ios, 'Runner')], [widget, widget_dir]].each do |target, directory|
+  manifest = File.join(directory, 'PrivacyInfo.xcprivacy')
+  FileUtils.cp(File.join(mobile, 'native/apple/PrivacyInfo.xcprivacy'), manifest)
+  relative = Pathname.new(manifest).relative_path_from(Pathname.new(project.project_dir)).to_s
+  reference = privacy_group.files.find { |item| item.path == relative } || privacy_group.new_file(relative)
+  unless target.resources_build_phase.files.any? { |item| item.file_ref == reference }
+    target.resources_build_phase.add_file_reference(reference)
+  end
+end
 [watch, widget].each do |target|
   target.build_configurations.each do |config|
     abort "Missing companion PRODUCT_NAME for #{target.name}/#{config.name}" if config.build_settings['PRODUCT_NAME'].to_s.empty?
