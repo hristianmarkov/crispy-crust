@@ -11,7 +11,7 @@ on:
       build_number:
         description: Unused Apple build number
         required: true
-        default: '8'
+        default: '9'
 permissions:
   contents: read
 concurrency:
@@ -25,7 +25,7 @@ jobs:
     environment: mobile-release
     env:
       CRISPY_APP_VERSION: ${{ inputs.version || '1.0' }}
-      CRISPY_APP_BUILD_NUMBER: ${{ inputs.build_number || '8' }}
+      CRISPY_APP_BUILD_NUMBER: ${{ inputs.build_number || '9' }}
       FASTLANE_OPT_OUT_USAGE: 'true'
       FASTLANE_SKIP_UPDATE_CHECK: 'true'
     steps:
@@ -117,6 +117,24 @@ jobs:
           flutter pub get
           dart run flutter_launcher_icons
           flutter build ipa --release --build-name="$CRISPY_APP_VERSION" --build-number="$CRISPY_APP_BUILD_NUMBER" --dart-define-from-file="$CRISPY_CRUST_BUILD_CONFIG" --export-options-plist="$CRISPY_IOS_EXPORT_OPTIONS"
+      - name: Validate exported bundle versions and watch icon
+        run: |
+          python3 - <<'PY'
+          import pathlib, plistlib, zipfile
+          ipa = next(pathlib.Path('mobile/apps/mobile/build/ios/ipa').glob('*.ipa'))
+          with zipfile.ZipFile(ipa) as package:
+              main = plistlib.loads(package.read('Payload/Runner.app/Info.plist'))
+              for bundle in ['Watch/CrispyWatch.app', 'PlugIns/CrispyWidgets.appex']:
+                  root = 'Payload/Runner.app/' + bundle
+                  info = plistlib.loads(package.read(root + '/Info.plist'))
+                  for key in ['CFBundleShortVersionString', 'CFBundleVersion']:
+                      if info[key] != main[key]:
+                          raise SystemExit('Companion version does not match the phone: ' + bundle + ' / ' + key)
+                  if bundle.startswith('Watch/'):
+                      if not info.get('CFBundleIconName') or root + '/Assets.car' not in package.namelist():
+                          raise SystemExit('Watch app icon catalogue is missing from the signed IPA.')
+          print('Signed phone, watch and widget versions match; watch icon catalogue is present.')
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: crispy-testflight-${{ env.CRISPY_APP_BUILD_NUMBER }}

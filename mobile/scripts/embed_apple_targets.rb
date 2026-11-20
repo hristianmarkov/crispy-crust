@@ -14,6 +14,14 @@ runner = project.targets.find { |target| target.name == 'Runner' }
 abort 'Flutter Runner target not found.' unless runner
 companions = File.join(ios, 'RunnerCompanions')
 FileUtils.mkdir_p(companions)
+launch_assets = File.join(ios, 'Runner/Assets.xcassets/LaunchImage.imageset')
+FileUtils.mkdir_p(launch_assets)
+FileUtils.cp(File.join(mobile, 'apps/mobile/assets/brand/app-icon.png'), File.join(launch_assets, 'LaunchImage.png'))
+File.write(File.join(launch_assets, 'Contents.json'), JSON.pretty_generate({
+  'images' => [{'idiom' => 'universal', 'filename' => 'LaunchImage.png', 'scale' => '1x'}],
+  'info' => {'author' => 'xcode', 'version' => 1}
+}))
+FileUtils.cp(File.join(mobile, 'scripts/templates/ios_launchscreen.storyboard'), File.join(ios, 'Runner/Base.lproj/LaunchScreen.storyboard'))
 
 def plist(path, values)
   Xcodeproj::Plist.write_to_path(values, path)
@@ -69,6 +77,7 @@ abort 'Expected a version and build number in pubspec.yaml.' unless version_matc
 app_version = ENV.fetch('CRISPY_APP_VERSION', version_match[1])
 app_build = ENV.fetch('CRISPY_APP_BUILD_NUMBER', version_match[2])
 abort 'Invalid Apple version.' unless app_version.match?(/\A\d+\.\d+(?:\.\d+)?\z/)
+app_version += '.0' if app_version.split('.').length == 2 # Flutter normalizes 1.0 to 1.0.0.
 abort 'Invalid Apple build number.' unless app_build.match?(/\A[1-9]\d*\z/)
 runner.build_configurations.each { |config| config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = bundle_id }
 project.targets.select { |target| target.name == 'RunnerTests' }.each do |target|
@@ -89,6 +98,7 @@ base_plist = {'CFBundleDevelopmentRegion' => 'en', 'CFBundleExecutable' => '$(EX
   'CFBundleVersion' => '$(CURRENT_PROJECT_VERSION)'}
 watch_plist = File.join(watch_dir, 'Info.plist')
 plist(watch_plist, base_plist.merge({'CFBundleDisplayName' => 'Crispy Crust', 'CFBundlePackageType' => 'APPL',
+  'CFBundleIconName' => 'AppIcon',
   'WKApplication' => true, 'WKCompanionAppBundleIdentifier' => bundle_id,
   'WKRunsIndependentlyOfCompanionApp' => false}))
 widget_plist = File.join(widget_dir, 'Info.plist')
