@@ -48,6 +48,18 @@ const request = (
     },
     body: JSON.stringify(body),
   });
+
+test("first coach use initializes caller account without requiring library sync", async () => {
+  const before = calls.length;
+  const usage = await router(new Request('https://backend.test/functions/v1/app-api/v1/coach/usage', {
+    headers: { authorization: 'Bearer valid' },
+  }));
+  assert.equal(usage.status, 200);
+  assert.deepEqual(calls.slice(before).map(x => x.name), ['cc_bootstrap', 'cc_coach_usage']);
+  const consentBefore = calls.length;
+  assert.equal((await router(request('/consents', {purpose:'coach',version:'1',granted:true}))).status, 200);
+  assert.deepEqual(calls.slice(consentBefore).map(x => x.name), ['cc_bootstrap', 'cc_grant_consent']);
+});
 test("requires verified Auth token, exact origin and real operation ID", async () => {
   assert.equal(
     (

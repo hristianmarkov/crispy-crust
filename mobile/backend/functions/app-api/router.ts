@@ -134,8 +134,10 @@ export function createRouter(config: RouterConfig) {
         new URL(req.url).pathname.replace(/^.*\/app-api(?:\/v1)?/, "") || "/";
       const url = new URL(req.url);
       if (req.method === "GET") {
-        if (path === "/coach/usage")
+        if (path === "/coach/usage") {
+          await config.backend.rpc("cc_bootstrap", { p_name: null }, token);
           return response(await config.backend.rpc("cc_coach_usage", {}, token));
+        }
         const mediaRead = path.match(/^\/media\/([^/]+)\/download$/);
         if (mediaRead) {
           if (!config.media)
@@ -439,10 +441,13 @@ export function createRouter(config: RouterConfig) {
         only(body, ["purpose", "version", "granted"]);
         if (typeof body.granted !== "boolean")
           throw new ApiError("INVALID_BOOLEAN");
+        const purpose = string(body.purpose, 20);
+        const version = string(body.version, 50);
+        await rpc("cc_bootstrap", { p_name: null });
         return response(
           await rpc("cc_grant_consent", {
-            p_purpose: string(body.purpose, 20),
-            p_version: string(body.version, 50),
+            p_purpose: purpose,
+            p_version: version,
             p_granted: body.granted,
           }),
         );
