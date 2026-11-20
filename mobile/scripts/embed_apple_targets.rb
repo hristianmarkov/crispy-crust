@@ -30,7 +30,7 @@ def embed(project, runner, target, phase_name, destination, subfolder)
   end
 end
 
-def add_target(project, name, platform, deployment, files, plist_path, identifier)
+def add_target(project, name, platform, deployment, files, plist_path, identifier, version, build_number)
   target = project.targets.find { |item| item.name == name } || project.new_target(
     platform == :watchos ? :application : :app_extension, name, platform, deployment)
   group = project.main_group.find_subpath('RunnerCompanions', true)
@@ -48,7 +48,7 @@ def add_target(project, name, platform, deployment, files, plist_path, identifie
       'SWIFT_VERSION' => '5.0', 'SWIFT_STRICT_CONCURRENCY' => 'minimal',
       'GENERATE_INFOPLIST_FILE' => 'NO',
       'INFOPLIST_FILE' => Pathname.new(plist_path).relative_path_from(Pathname.new(project.project_dir)).to_s,
-      'CURRENT_PROJECT_VERSION' => '1', 'MARKETING_VERSION' => '0.1.0',
+      'CURRENT_PROJECT_VERSION' => build_number, 'MARKETING_VERSION' => version,
       'SKIP_INSTALL' => 'YES', 'CODE_SIGN_STYLE' => 'Automatic'
     })
     if platform == :watchos
@@ -64,6 +64,12 @@ def add_target(project, name, platform, deployment, files, plist_path, identifie
 end
 
 bundle_id = 'app.crispycrust.mobile'
+version_match = File.read(File.join(mobile, 'apps/mobile/pubspec.yaml')).match(/^version:\s*([^+\s]+)\+(\d+)\s*$/)
+abort 'Expected a version and build number in pubspec.yaml.' unless version_match
+app_version = ENV.fetch('CRISPY_APP_VERSION', version_match[1])
+app_build = ENV.fetch('CRISPY_APP_BUILD_NUMBER', version_match[2])
+abort 'Invalid Apple version.' unless app_version.match?(/\A\d+\.\d+(?:\.\d+)?\z/)
+abort 'Invalid Apple build number.' unless app_build.match?(/\A[1-9]\d*\z/)
 runner.build_configurations.each { |config| config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = bundle_id }
 project.targets.select { |target| target.name == 'RunnerTests' }.each do |target|
   target.build_configurations.each { |config| config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = "#{bundle_id}.RunnerTests" }
@@ -88,8 +94,8 @@ plist(watch_plist, base_plist.merge({'CFBundleDisplayName' => 'Crispy Crust', 'C
 widget_plist = File.join(widget_dir, 'Info.plist')
 plist(widget_plist, base_plist.merge({'CFBundleDisplayName' => 'Crispy Crust', 'CFBundlePackageType' => 'XPC!',
   'NSExtension' => {'NSExtensionPointIdentifier' => 'com.apple.widgetkit-extension'}}))
-watch = add_target(project, 'CrispyWatch', :watchos, '9.0', [watch_file, core_file], watch_plist, "#{bundle_id}.watch")
-widget = add_target(project, 'CrispyWidgets', :ios, '16.2', [widget_file], widget_plist, "#{bundle_id}.widgets")
+watch = add_target(project, 'CrispyWatch', :watchos, '9.0', [watch_file, core_file], watch_plist, "#{bundle_id}.watch", app_version, app_build)
+widget = add_target(project, 'CrispyWidgets', :ios, '16.2', [widget_file], widget_plist, "#{bundle_id}.widgets", app_version, app_build)
 embed(project, runner, widget, 'Embed Crispy Widgets', '', '13')
 embed(project, runner, watch, 'Embed Crispy Watch', '$(CONTENTS_FOLDER_PATH)/Watch', '16')
 order_companion_embed_phases(runner)

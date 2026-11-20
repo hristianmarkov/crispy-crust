@@ -392,17 +392,18 @@ test("image jobs send only consent-checked verified private bytes and return no 
   assert.deepEqual(result.confirmed_measurements, []);
 });
 test("purchase route refuses client identity substitution and image/media require configured capabilities", async () => {
+  const calls: string[] = [];
   const backend: Backend = {
     user: async () => ({ id: U }),
     rows: async () => [{ id: U }],
-    rpc: async () => ({}),
+    rpc: async (name) => { calls.push(name); return {}; },
   };
   const router = createRouter({
     backend,
     allowedOrigins: [],
     coachEnabled: false,
     importEnabled: false,
-    billing: { refresh: async (id) => ({ verified: id }) },
+    billing: { refresh: async (id) => { calls.push('billing.refresh'); return { verified: id }; } },
     imageEnabled: true,
   });
   const req = (path: string, body: Json) =>
@@ -425,7 +426,9 @@ test("purchase route refuses client identity substitution and image/media requir
     ).status,
     403,
   );
+  assert.deepEqual(calls, []);
   assert.equal((await router(req("/purchases/verify", {}))).status, 200);
+  assert.deepEqual(calls, ['cc_bootstrap', 'billing.refresh']);
   assert.equal(
     (
       await router(

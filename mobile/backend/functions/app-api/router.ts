@@ -537,6 +537,10 @@ export function createRouter(config: RouterConfig) {
         only(body, ["app_user_id"]);
         if (body.app_user_id && body.app_user_id !== user.id)
           throw new ApiError("BILLING_IDENTITY_MISMATCH", 403);
+        // Billing also works before the user opts into uploading local records.
+        // Initialise the caller's idempotent account using their JWT, never a
+        // client-supplied user ID or the privileged billing adapter.
+        await rpc("cc_bootstrap", { p_name: null });
         return response(await config.billing.refresh(user.id));
       }
       if (path === "/media/uploads") {

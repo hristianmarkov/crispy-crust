@@ -2,6 +2,21 @@
 
 This is the current launch checklist. It supersedes older setup snapshots in the handover. The app is not publicly launched. On 20 November the owner authorized new builds, uploads and remaining store administration; the earlier build hold is lifted. Changes described below are local unless explicitly described as deployed or saved in a provider. Browser UI work must use browser tabs only, without controlling desktop windows.
 
+## Latest verified position — native billing investigation
+
+- Android build 6 is available to internal testers. Build **0.1.0+7** has now been signed and uploaded; rollout confirmation is pending. AAB SHA-256: `966158edf170d13c77f393db397378657e898556f6bf651b9ccccbb1a265d8fd`.
+- A headless Android 36 emulator reproduced the review account's sign-in and billing flow. Correct credentials authenticate successfully. The original flow failed on RevenueCat configuration error 23 before checking existing access. Explicit customer registration exposed a separate `BILLING_USER_NOT_FOUND` database error: a signed-in account without cloud-sync opt-in had no application profile.
+- Fixed native registration to fetch CustomerInfo independently of the catalogue. Catalogue/management failures no longer prevent refresh or restore from reaching server verification. Purchases and paywall presentation still require real store offerings and verified status. CustomerInfo never grants local access. Identity-change guards remain in place.
+- Deployed **app-api version 10**. The authenticated purchase verification route idempotently initializes the caller's account with their JWT before the privileged billing refresh. It does not upload local baking records or enable cloud sync.
+- The dedicated reviewer account has a RevenueCat promotional Pro entitlement through **20 November 2027**. The emulator now reaches `ready`, with server-verified active `crispy_crust_pro`. The Google catalogue still fails; this proves existing Pro access, not a successful paid purchase.
+- **142 Flutter app tests**, **58 backend tests** and backend TypeScript checks pass. The earlier pushed commit `c8adbab` also passed all four GitHub CI jobs, including Android certificate verification and unsigned iOS compilation.
+- Google reviewer credentials/instructions, adult target audience (18+), no advertising ID, Data safety, trader status and app terms are saved to Publishing overview. These are saved declarations, not a public store approval. No credential is recorded here.
+- Apple distribution certificate, watch/widget identifiers, shared app group and all three App Store provisioning profiles are created. The main app and widgets have the shared group assigned. Profiles expire 20 November 2027. Existing unrelated signing resources were retained.
+- Apple's app availability excludes China mainland (174 regions). Content-rights declaration and private review contact were saved with owner approval.
+- GitHub `mobile-release` environment restricts signing secrets to `feat/flutter-mobile-app` and `main`. Approved certificate, password, profiles and App Store Connect App Manager key are saved as encrypted environment secrets; no plaintext password file was created. A signed TestFlight workflow is prepared, but no iOS upload is claimed until the run succeeds and Apple processing is verified.
+
+Still outstanding: Google catalogue write-capability blocker and real sandbox purchase/restore acceptance; signed iOS build/upload/processing and reviewer credentials in Apple; owner-managed SMTP; public-production testing eligibility and final device acceptance. Earlier dated entries below are historical snapshots and must not override this section.
+
 ## Completed and verified
 
 - RevenueCat paywall `pw928ec063c38d4816`, revision 2, published with explicit owner approval. Cream/olive design, bread photograph, monthly/yearly choices, immediate close, restore and policy links. Attached to the current default offering. Prices come from store packages.

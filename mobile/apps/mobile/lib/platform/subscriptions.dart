@@ -209,6 +209,10 @@ class RevenueCatStoreGateway implements SubscriptionStoreGateway {
       if (await Purchases.appUserID != userId) { await Purchases.logIn(userId); }
     }
     await _assertIdentity(userId);
+    // Register this identity even when the store catalogue cannot be loaded.
+    // CustomerInfo is not used to grant access; our backend verifies that.
+    await Purchases.getCustomerInfo();
+    await _assertIdentity(userId);
   });
   @override
   Future<List<StoreOffering>> offerings(String expectedUserId) => _serialized(() async {
@@ -284,7 +288,7 @@ class SubscriptionService extends ChangeNotifier {
   bool _mutationQueued = false;
   int _generation = 0;
   Future<void> _queue = Future.value();
-  bool get canPurchase => state == SubscriptionState.ready && verifiedStatus != null &&
+  bool get canPurchase => state == SubscriptionState.ready && verifiedStatus != null && offerings.isNotEmpty &&
     accountId != null && accountId == currentUserId();
   void _notify() { if (!_disposed) { notifyListeners(); } }
   void _clear() { offerings = const []; verifiedStatus = null; managementUri = null; accountId = null; }
@@ -348,7 +352,15 @@ class SubscriptionService extends ChangeNotifier {
     try {
       await gateway.bind(key, user); _assertUser(user, generation);
       // bind invalidates package handles, so reload before purchasing.
-      final currentOfferings = await gateway.offerings(user); _assertUser(user, generation);
+      var currentOfferings = <StoreOffering>[];
+      String? catalogueMessage;
+      try { currentOfferings = await gateway.offerings(user); }
+      catch (error) {
+        _assertUser(user, generation);
+        if (purchaseId != null || paywall || (error is SubscriptionFailure && error.code == 'ACCOUNT_CHANGED')) { rethrow; }
+        catalogueMessage = 'Subscription plans are temporarily unavailable. Your existing access has been checked separately. Try refreshing plans later.';
+      }
+      _assertUser(user, generation);
       if (paywall) {
         // Store UI owns the transaction; access still comes from server verification below.
         await (gateway as RevenueCatStoreGateway).presentPaywall(user);
@@ -359,7 +371,13 @@ class SubscriptionService extends ChangeNotifier {
         await gateway.purchase(user, purchaseId); _assertUser(user, generation);
       }
       if (restore) { await gateway.restore(user); _assertUser(user, generation); }
-      final management = await gateway.managementUrl(user); _assertUser(user, generation);
+      String? management;
+      try { management = await gateway.managementUrl(user); }
+      catch (error) {
+        _assertUser(user, generation);
+        if (error is SubscriptionFailure && error.code == 'ACCOUNT_CHANGED') { rethrow; }
+      }
+      _assertUser(user, generation);
       VerifiedSubscriptionStatus? verified;
       String? verificationMessage;
       try { verified = await verifier.refresh(user); _assertUser(user, generation); }
@@ -368,7 +386,7 @@ class SubscriptionService extends ChangeNotifier {
       accountId = user; offerings = List.unmodifiable(currentOfferings);
       managementUri = validatedStoreManagementUri(management); verifiedStatus = verified;
       state = SubscriptionState.ready;
-      message = verificationMessage ?? (restore ? 'Restore completed and service status verified.' : purchaseId != null
+      message = verificationMessage ?? catalogueMessage ?? (restore ? 'Restore completed and service status verified.' : purchaseId != null
         ? 'Store purchase completed and service status verified.' : currentOfferings.isEmpty
           ? 'No subscription offering was returned by this store. No product or price has been invented.' : 'Current store offerings and service status loaded.');
       _notify();

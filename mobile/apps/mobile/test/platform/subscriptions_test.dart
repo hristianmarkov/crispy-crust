@@ -10,6 +10,7 @@ const offer = StoreOffering(id: 'actual-monthly', productId: 'store.product.mont
 class FakeStore implements SubscriptionStoreGateway {
   int bindings = 0, purchases = 0, restores = 0, logouts = 0;
   String? boundUser;
+  bool catalogueUnavailable = false, managementUnavailable = false;
   List<StoreOffering> products = [offer];
   Completer<void>? bindGate;
   Completer<void>? purchaseGate;
@@ -20,6 +21,7 @@ class FakeStore implements SubscriptionStoreGateway {
     boundUser = userId;
   }
   @override Future<List<StoreOffering>> offerings(String expectedUserId) async {
+    if (catalogueUnavailable) { throw StateError('Store catalogue unavailable'); }
     expect(boundUser, expectedUserId); return products;
   }
   @override Future<void> purchase(String expectedUserId, String offeringId) async {
@@ -27,7 +29,11 @@ class FakeStore implements SubscriptionStoreGateway {
     await purchaseGate?.future;
   }
   @override Future<void> restore(String expectedUserId) async { expect(boundUser, expectedUserId); restores++; }
-  @override Future<String?> managementUrl(String expectedUserId) async { expect(boundUser, expectedUserId); return manage; }
+  @override Future<String?> managementUrl(String expectedUserId) async {
+    expect(boundUser, expectedUserId);
+    if (managementUnavailable) { throw StateError('Store management unavailable'); }
+    return manage;
+  }
   @override Future<void> signOut() async { boundUser = null; logouts++; }
 }
 
@@ -54,6 +60,24 @@ void main() {
     expect(configuration.keyFor(TargetPlatform.windows), isNull);
   });
   const configured = SubscriptionConfiguration(androidKey: 'goog_public_sdk_fixture');
+  test('catalogue and management failure do not block verification or restore', () async {
+    final store = FakeStore()..catalogueUnavailable = true..managementUnavailable = true;
+    final verifier = FakeVerifier();
+    final service = SubscriptionService(currentUserId: () => 'user-a', gateway: store,
+      verifier: verifier, configuration: configured, platform: TargetPlatform.android);
+    await service.refresh();
+    expect(service.state, SubscriptionState.ready);
+    expect(service.verifiedStatus, isNotNull);
+    expect(service.offerings, isEmpty);
+    expect(service.canPurchase, isFalse);
+    await service.purchase(offer.id);
+    expect(store.purchases, 0);
+    await service.restore();
+    expect(store.restores, 1);
+    expect(verifier.checkedUsers, ['user-a', 'user-a']);
+    expect(service.verifiedStatus, isNotNull);
+    service.dispose();
+  });
   test('anonymous/local-only mode never configures or purchases from the store', () async {
     final store = FakeStore(); final verifier = FakeVerifier();
     final service = SubscriptionService(currentUserId: () => null, gateway: store,
