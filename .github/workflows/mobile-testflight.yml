@@ -97,10 +97,10 @@ jobs:
           KEYCHAIN_PATH="$CRISPY_SIGNING_DIR/release.keychain-db"
           # Validate the supplied archive before blaming Keychain for its generic
           # password error. Rewrap with the runner's native OpenSSL for macOS
-          # compatibility; the private key stays encrypted, including in the pipe.
+          # compatibility; the temporary PEM private key stays encrypted.
           /opt/homebrew/bin/openssl pkcs12 -in "$CRISPY_SIGNING_DIR/distribution.p12" -passin env:CERTIFICATE_PASSWORD -info -noout
-          /opt/homebrew/bin/openssl pkcs12 -in "$CRISPY_SIGNING_DIR/distribution.p12" -passin env:CERTIFICATE_PASSWORD -passout env:CERTIFICATE_PASSWORD |
-            /usr/bin/openssl pkcs12 -export -passin env:CERTIFICATE_PASSWORD -passout env:CERTIFICATE_PASSWORD -out "$CRISPY_SIGNING_DIR/distribution-native.p12"
+          /opt/homebrew/bin/openssl pkcs12 -in "$CRISPY_SIGNING_DIR/distribution.p12" -passin env:CERTIFICATE_PASSWORD -passout env:CERTIFICATE_PASSWORD -out "$CRISPY_SIGNING_DIR/distribution-encrypted.pem"
+          /usr/bin/openssl pkcs12 -export -in "$CRISPY_SIGNING_DIR/distribution-encrypted.pem" -inkey "$CRISPY_SIGNING_DIR/distribution-encrypted.pem" -passin env:CERTIFICATE_PASSWORD -passout env:CERTIFICATE_PASSWORD -out "$CRISPY_SIGNING_DIR/distribution-native.p12"
           security create-keychain -p "$CRISPY_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$CRISPY_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
