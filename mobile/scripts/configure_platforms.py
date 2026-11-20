@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Idempotent native configuration. Never writes secrets or signing identities."""
 from pathlib import Path
+import json
+import os
 import plistlib
 import re
 import shutil
@@ -11,9 +13,26 @@ app = root / 'apps' / 'mobile'
 templates = root / 'scripts' / 'templates'
 android = app / 'android'
 if android.exists():
+    # Keep phone + companion builds within typical developer/CI memory limits.
+    properties = android / 'gradle.properties'
+    build_properties = properties.read_text() if properties.exists() else ''
+    for key, value in {
+        'org.gradle.jvmargs': '-Xmx3G -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError',
+        'org.gradle.workers.max': '2',
+        'org.gradle.parallel': 'false',
+        'kotlin.daemon.jvmargs': '-Xmx768m',
+    }.items():
+        pattern = rf'(?m)^{re.escape(key)}=.*$'
+        line = f'{key}={value}'
+        build_properties = (re.sub(pattern, lambda _: line, build_properties)
+                            if re.search(pattern, build_properties)
+                            else build_properties.rstrip() + '\n' + line + '\n')
+    properties.write_text(build_properties)
     manifest = android / 'app/src/main/AndroidManifest.xml'
     ns = 'http://schemas.android.com/apk/res/android'
+    tools_ns = 'http://schemas.android.com/tools'
     ET.register_namespace('android', ns)
+    ET.register_namespace('tools', tools_ns)
     tree = ET.parse(manifest)
     element = tree.getroot()
     permissions = {
@@ -26,6 +45,7 @@ if android.exists():
         'android.permission.BLUETOOTH_CONNECT': {},
         'android.permission.BLUETOOTH': {'maxSdkVersion': '30'},
         'android.permission.BLUETOOTH_ADMIN': {'maxSdkVersion': '30'},
+        'android.permission.ACCESS_COARSE_LOCATION': {'maxSdkVersion': '30'},
         'android.permission.ACCESS_FINE_LOCATION': {'maxSdkVersion': '30'},
     }
     existing = {x.get(f'{{{ns}}}name') for x in element.findall('uses-permission')}
@@ -33,8 +53,21 @@ if android.exists():
         if name not in existing:
             ET.SubElement(element, 'uses-permission', {f'{{{ns}}}name': name,
                 **{f'{{{ns}}}{k}': v for k, v in attributes.items()}})
+    # RxAndroidBle contributes uncapped sdk-23 location permissions. Keep one
+    # legacy declaration of each permission for Bluetooth on Android 11 and older.
+    for name in ('android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION'):
+        marker = next((entry for entry in element.findall('uses-permission-sdk-23')
+                       if entry.get(f'{{{ns}}}name') == name), None)
+        if marker is None:
+            marker = ET.SubElement(element, 'uses-permission-sdk-23', {f'{{{ns}}}name': name})
+        marker.set(f'{{{tools_ns}}}node', 'remove')
     application = element.find('application')
     application.set(f'{{{ns}}}label', 'Crispy Crust')
+    posthog_auto_init = next((entry for entry in application.findall('meta-data')
+                              if entry.get(f'{{{ns}}}name') == 'com.posthog.posthog.AUTO_INIT'), None)
+    if posthog_auto_init is None:
+        posthog_auto_init = ET.SubElement(application, 'meta-data', {f'{{{ns}}}name': 'com.posthog.posthog.AUTO_INIT'})
+    posthog_auto_init.set(f'{{{ns}}}value', 'false')
     activity = application.find('activity')
     activity.set(f'{{{ns}}}name', 'app.crispycrust.crispy_crust.MainActivity')
     if not any(x.find("data") is not None and x.find('data').get(f'{{{ns}}}scheme') == 'app.crispycrust'
@@ -93,6 +126,8 @@ if android.exists():
             text += '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
         if 'play-services-wearable' not in text:
             text += '\n\ndependencies {\n    implementation("com.google.android.gms:play-services-wearable:19.0.0")\n}\n'
+        if '// Crispy upload signing' not in text:
+            text += '\n\n// Crispy upload signing\n' + (templates / 'android_upload_signing.gradle.kts').read_text()
         gradle.write_text(text)
     ET.indent(tree, space='    ')
     tree.write(manifest, encoding='unicode', xml_declaration=True)
@@ -107,7 +142,17 @@ if ios.exists():
         config = plistlib.load(f)
     config['CFBundleDisplayName'] = 'Crispy Crust'
     config['NSSupportsLiveActivities'] = True
-    config['CFBundleURLTypes'] = [{'CFBundleTypeRole': 'Editor', 'CFBundleURLSchemes': ['app.crispycrust']}]
+    config['com.posthog.posthog.AUTO_INIT'] = False
+    build_config_path = Path(os.environ.get('CRISPY_CRUST_BUILD_CONFIG', root / 'config/development.json'))
+    build_config = json.loads(build_config_path.read_text(encoding='utf-8-sig'))
+    google_ios_client = build_config.get('GOOGLE_IOS_CLIENT_ID', '')
+    url_types = [{'CFBundleTypeRole': 'Editor', 'CFBundleURLSchemes': ['app.crispycrust']}]
+    if google_ios_client:
+        if not re.fullmatch(r'[a-zA-Z0-9-]+\.apps\.googleusercontent\.com', google_ios_client):
+            raise SystemExit('GOOGLE_IOS_CLIENT_ID must be the Google OAuth client ID for the iOS app.')
+        google_scheme = '.'.join(reversed(google_ios_client.split('.')))
+        url_types.append({'CFBundleTypeRole': 'Editor', 'CFBundleURLSchemes': [google_scheme]})
+    config['CFBundleURLTypes'] = url_types
     config['NSCalendarsFullAccessUsageDescription'] = 'Read only busy time ranges you choose to help fit baking around your day. Event details are not uploaded.'
     config['NSCalendarsUsageDescription'] = config['NSCalendarsFullAccessUsageDescription']
     config['NSBluetoothAlwaysUsageDescription'] = 'Connect a supported temperature probe you choose. Manual temperature entry always remains available.'

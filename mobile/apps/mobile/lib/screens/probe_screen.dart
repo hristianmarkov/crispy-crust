@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'kitchen_design.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import '../data/app_store.dart';
 import '../platform/platform_result.dart';
@@ -146,7 +147,7 @@ class _ProbeScreenState extends State<ProbeScreen> {
     final value = reading;
     final stale = value?.isStaleAt(DateTime.now().toUtc()) ?? true;
     return Scaffold(appBar: AppBar(title: const Text('Temperature probe')),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
+      body: KitchenPage(children: [
         Text('Measured, then confirmed.', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 12),
         const Text('This adapter supports the Bluetooth SIG Environmental Sensing temperature characteristic (0x181A / 0x2A6E). A specific retail model has not been physically validated. Proprietary probes may not work.'),

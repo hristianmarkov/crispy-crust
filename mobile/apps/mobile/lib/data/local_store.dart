@@ -17,6 +17,7 @@ class LocalAppStore extends AppStore {
   bool _archiveBusy=false;
   final _uuid = const Uuid();
   final Map<String, AppRecord> _records = {};
+  bool get hasLocalRecords => _records.isNotEmpty;
   final Map<String, dynamic> _preferences = {};
   final Set<String> _stepLocks = {};
   final Set<String> _feedLocks = {};
@@ -81,22 +82,89 @@ class LocalAppStore extends AppStore {
     await db.customStatement('INSERT INTO preferences (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',[key,jsonEncode(value)]);
     _preferences[key]=value;notifyListeners();
   }
+  @override
+  Future<void> reconcileStock(String id, {
+    required int expectedRevision, required double grams, required String reason,
+    bool withdrawal = false, String? bakeId,
+  }) async {
+    if (!grams.isFinite || grams < 0 || (withdrawal && grams == 0) || reason.trim().isEmpty) {
+      throw const FormatException('Enter a valid amount and a reason.');
+    }
+    await db.transaction(() async {
+      final row = await db.customSelect(
+        'SELECT kind, fields, revision FROM records WHERE id = ? AND deleted_at IS NULL',
+        variables: [Variable.withString(id)],
+      ).getSingleOrNull();
+      if (row == null || row.read<int>('revision') != expectedRevision) {
+        throw StateError('The stock record changed. Reopen it and check the current amount.');
+      }
+      final kind = row.read<String>('kind');
+      if (!{'starter', 'pantry', 'discard'}.contains(kind)) {
+        throw StateError('This record has no stock amount.');
+      }
+      final fields = Map<String, dynamic>.from(jsonDecode(row.read<String>('fields')) as Map);
+      final previous = kind == 'starter' ? fields['mass'] : fields['grams'] ?? fields['quantity'];
+      if (withdrawal && (previous is! num || !previous.isFinite || grams > previous)) {
+        throw const FormatException('Confirm the measured stock before withdrawing this amount.');
+      }
+      if (bakeId != null) {
+        final bake = await db.customSelect(
+          "SELECT id FROM records WHERE id = ? AND kind = 'bake' AND deleted_at IS NULL",
+          variables: [Variable.withString(bakeId)],
+        ).getSingleOrNull();
+        if (!withdrawal || kind != 'starter' || bake == null) {
+          throw StateError('Choose an existing bake for this starter withdrawal.');
+        }
+      }
+      final next = withdrawal
+          ? (Rational.fromNum(previous as num) - Rational.fromNum(grams)).toDouble()
+          : grams;
+      final occurredAt = DateTime.now().toUtc();
+      await _write('correction', {
+        'correctsId': id,
+        'name': withdrawal ? 'Stock used' : 'Measured stock correction',
+        'correction': reason.trim(),
+        'beforeGrams': previous,
+        'afterGrams': next,
+        if (withdrawal) 'usedGrams': grams,
+        if (bakeId != null) 'bakeId': bakeId,
+        'occurredAt': occurredAt.toIso8601String(),
+      }, _uuid.v4(), eventType: 'StockReconciled', occurredAt: occurredAt);
+      await _write(kind, {
+        ...fields,
+        if (kind == 'starter') 'mass': next,
+        if (kind != 'starter') ...{'grams': next, 'quantity': next},
+        'stockReconciledAt': occurredAt.toIso8601String(),
+      }, id, eventType: 'StockProjectionUpdated', occurredAt: occurredAt);
+    });
+    await load();
+  }
   @override Future<void> logFeed(String starterId,{required double seed,required double flour,required double water,DateTime? occurredAt}) async {
     if(!_feedLocks.add(starterId))throw StateError('A feed for this jar is already being recorded.');
     try {
     if(!seed.isFinite||!flour.isFinite||!water.isFinite||seed<0||flour<=0||water<0)throw const FormatException('Enter valid seed, flour and water weights.');
-    final starter=find(starterId);if(starter==null||starter.kind!='starter')throw StateError('Starter not found.');
     final at=occurredAt??DateTime.now();
     if(at.isAfter(DateTime.now().add(const Duration(minutes:5))))throw const FormatException('A feed cannot be recorded in the future.');
-    final laterFeed=records('feed').any((f)=>f.text('starterId')==starterId && (f.date('occurredAt')?.isAfter(at)??false));
-    if(laterFeed)throw StateError('This backdated feed precedes another actual feed. Review the feed history before changing the jar mass.');
+    await db.transaction(() async {
+    final row = await db.customSelect(
+      "SELECT fields, revision, updated_at FROM records WHERE id = ? AND kind = 'starter' AND deleted_at IS NULL",
+      variables: [Variable.withString(starterId)],
+    ).getSingleOrNull();
+    if (row == null) throw StateError('Starter not found.');
+    final starter = AppRecord(id: starterId, kind: 'starter',
+      fields: Map<String, dynamic>.from(jsonDecode(row.read<String>('fields')) as Map),
+      revision: row.read<int>('revision'), updatedAt: DateTime.parse(row.read<String>('updated_at')));
+    if (starter.date('lastFeedAt')?.isAfter(at) == true ||
+        starter.date('stockReconciledAt')?.isAfter(at) == true ||
+        records('feed').any((f) => f.text('starterId') == starterId && f.date('occurredAt')?.isAfter(at) == true)) {
+      throw StateError('This feed predates a recorded feed or stock change. Review the jar history before changing its mass.');
+    }
     final oldMass=starter.fields['mass'];
     if(oldMass is num && seed>oldMass)throw const FormatException('Seed exceeds the recorded jar amount. Correct the jar amount first.');
     final h=Rational.fromNum(starter.number('hydration',100))/Rational.fromNum(100);
     final exactSeed=Rational.fromNum(seed);
     final seedFlour=exactSeed/(Rational.one+h), seedWater=exactSeed-seedFlour;
     final total=seed+flour+water;
-    await db.transaction(() async {
       final feedId=_uuid.v4();
       await _write('feed',{'starterId':starterId,'name':starter.text('name'),'seed':seed,'flour':flour,'water':water,'occurredAt':at.toUtc().toIso8601String(),'total':total},feedId,eventType:'StarterFed',occurredAt:at);
       await _write('starter',{...starter.fields,'mass':total,'hydration':(Rational.fromNum(100)*(seedWater+Rational.fromNum(water))/(seedFlour+Rational.fromNum(flour))).toDouble(),'lastFeedAt':at.toUtc().toIso8601String(),'lastSeed':seed,'lastFlour':flour,'lastWater':water},starterId,eventType:'StarterProjectionUpdated',occurredAt:at);
@@ -105,19 +173,94 @@ class LocalAppStore extends AppStore {
     await load();
     } finally { _feedLocks.remove(starterId); }
   }
-  @override Future<AppRecord> createBake(Map<String,dynamic> recipe,{double scale=1,DateTime? serveAt,DateTime? startAt,Map<String,dynamic>? expectedSchedule}) async {
+  @override Future<AppRecord> createBake(Map<String,dynamic> recipe,{double scale=1,DateTime? serveAt,DateTime? startAt,Map<String,dynamic>? expectedSchedule, bool beginImmediately = false, BakeSetup setup = const BakeSetup()}) async {
     if(_creatingBake)throw StateError('Another plan is being saved. Review its reservations and try again.');
     _creatingBake=true;
     try {
     if(!scale.isFinite||scale<=0||scale>1)throw const FormatException('A larger batch needs explicit oven-load and pan validation. For now, plan separate named batches at the original yield or smaller.');
+    if (beginImmediately && startAt != null && !startAt.isAfter(DateTime.now())) throw BakeScheduleChanged();
     final steps=_maps(recipe['steps']);
     if(steps.isEmpty)throw const FormatException('This recipe needs an execution method before baking.');
-    final actualCandidate=planRecipe(recipe,records('availability'),[...records('bake'),...records('production')],{'oven':(preference('ovenCapacity',1) as num).toInt()},serveAt:serveAt,startAt:startAt);
-    if(expectedSchedule!=null&&canonicalJson(expectedSchedule)!=canonicalJson(actualCandidate.toJson()))throw StateError('The schedule changed after review. Generate and review the current plan before accepting it.');
+    final candidates = planRecipeCandidates(recipe, [...records('availability'), ...setup.awayRecords],
+      [...records('bake'), ...records('production')],
+      {'oven': (preference('ovenCapacity', 1) as num).toInt()},
+      serveAt: serveAt, startAt: startAt);
+    final expectedJson = expectedSchedule == null ? null : canonicalJson(expectedSchedule);
+    final actualCandidate = expectedJson == null ? candidates.first : candidates
+      .where((candidate) => canonicalJson(candidate.toJson()) == expectedJson).firstOrNull;
+    if (actualCandidate == null) {
+      throw BakeScheduleChanged();
+    }
     final scheduledSteps=steps.map((s){final task=actualCandidate.task(s['id'] as String);return {...s,'plannedStart':task.start.toIso8601String(),'plannedEnd':task.end.toIso8601String()};}).toList();
     final ingredients=_maps(recipe['ingredients']).map((i)=>{...i,'grams':((i['grams']??i['massG']??0) as num)*scale}).toList();
-    return await save('bake',{'name':recipe['title']??recipe['name']??'My bake','recipeId':recipe['id'],'recipeVersion':recipe['version']??1,'recipeSnapshot':recipe,'steps':scheduledSteps,'schedule':actualCandidate.toJson(),'ingredients':ingredients,'scale':scale,'stepIndex':0,'status':'planned','state':'planned','startAt':actualCandidate.startsAt.toIso8601String(),'startedAt':null,'serveAt':serveAt?.toUtc().toIso8601String(),'validationStatus':recipe['status']??'experimental','completedSteps':<Map<String,dynamic>>[]});
+    final id = _uuid.v4();
+    final name = recipe['title']?.toString() ?? 'My bake';
+    final shopping = setup.addToShopping ? _shoppingShortages(ingredients) : const <(String, double)>[];
+    final starter = setup.starterId == null ? null : find(setup.starterId!);
+    if (setup.starterId != null && (starter == null || starter.kind != 'starter' || starter.flag('archived'))) {
+      throw StateError('Choose an available starter for this bake.');
+    }
+    final starterGrams = ingredients.where((item) => item['role'] == 'starter')
+      .fold<double>(0, (total, item) => total + (item['grams'] as num));
+    final fields = <String, dynamic>{
+      'name': name, 'recipeId': recipe['id'], 'recipeVersion': recipe['version'] ?? 1,
+      'recipeSnapshot': recipe['baseRecipeSnapshot'] ?? recipe, 'steps': scheduledSteps,
+      'schedule': actualCandidate.toJson(), 'ingredients': ingredients, 'scale': scale,
+      'stepIndex': 0, 'status': beginImmediately ? 'active' : 'planned',
+      'state': beginImmediately ? 'active' : 'planned',
+      'startAt': actualCandidate.startsAt.toIso8601String(),
+      'startedAt': beginImmediately ? DateTime.now().toUtc().toIso8601String() : null,
+      'serveAt': serveAt?.toUtc().toIso8601String(), 'validationStatus': recipe['status'] ?? 'experimental',
+      if (starter != null && starterGrams > 0) ...{
+        'starterId': starter.id, 'starterName': starter.text('name'), 'starterGrams': starterGrams,
+      },
+      if (setup.timeAway.isNotEmpty) 'timeAway': setup.awayRecords.map((record) => record.fields).toList(),
+      'completedSteps': <Map<String, dynamic>>[],
+    };
+    await db.transaction(() async {
+      await _write('bake', fields, id);
+      for (final (ingredient, grams) in shopping) {
+        await _write('shopping', {'name': ingredient, 'grams': grams, 'bakeId': id,
+          'bakeName': name, 'checked': false}, _uuid.v4());
+      }
+    });
+    await load();
+    return find(id)!;
     } finally { _creatingBake=false; }
+  }
+  List<(String, double)> _shoppingShortages(List<Map<String, dynamic>> ingredients) {
+    String key(Object? name) => (name ?? '').toString().toLowerCase().trim()
+      .replaceFirst(RegExp(r'^(dough|pan) '), '').split(',').first;
+    final stock = <String, double>{};
+    for (final lot in records('pantry')) {
+      final ingredient = key(lot.text('name'));
+      stock.update(ingredient, (grams) => grams + lot.number('grams', lot.number('quantity')),
+        ifAbsent: () => lot.number('grams', lot.number('quantity')).toDouble());
+    }
+    for (final bake in records('bake').where((b) =>
+      ['active', 'planned'].contains(b.text('state', b.text('status'))))) {
+      for (final ingredient in _maps(bake.fields['ingredients'])) {
+        final name = key(ingredient['name']);
+        final grams = double.tryParse('${ingredient['grams']}') ?? 0;
+        if (!grams.isFinite || grams <= 0) continue;
+        stock.update(name, (available) => (available - grams).clamp(0, double.infinity), ifAbsent: () => 0);
+      }
+    }
+    final names = <String, String>{};
+    final total = <String, double>{};
+    for (final ingredient in ingredients) {
+      if (['water', 'starter', 'discard'].contains(ingredient['role'])) continue;
+      final name = key(ingredient['name']);
+      if (name.isEmpty) continue;
+      names[name] = name[0].toUpperCase() + name.substring(1);
+      final grams = (ingredient['grams'] as num).toDouble();
+      total.update(name, (amount) => amount + grams, ifAbsent: () => grams);
+    }
+    return [
+      for (final entry in total.entries)
+        if (entry.value > (stock[entry.key] ?? 0))
+          (names[entry.key]!, entry.value - (stock[entry.key] ?? 0)),
+    ];
   }
   @override Future<void> completeStep(String bakeId,{DateTime? occurredAt,int? expectedIndex}) async {
     if(!_stepLocks.add(bakeId))return;
@@ -132,13 +275,100 @@ class LocalAppStore extends AppStore {
       final completed=_maps(bake.fields['completedSteps']);
       if(completed.isNotEmpty && DateTime.parse(completed.last['occurredAt'] as String).isAfter(at))throw const FormatException('This step cannot finish before the previous recorded step.');
       final finalStep=index+1==steps.length;
+      final next = finalStep ? null : steps[index + 1];
+      final due = _guidedDeadline(steps[index], next, at);
       final history=[...completed,{'stepId':steps[index]['id'],'occurredAt':at.toUtc().toIso8601String()}];
       await db.transaction(() async {
+        final startedStarter = await _useStarterForStep(bake, steps, index, at);
         await _write('completion',{'bakeId':bakeId,'stepId':steps[index]['id'],'index':index,'occurredAt':at.toUtc().toIso8601String()},_uuid.v4(),eventType:'StepCompleted',occurredAt:at);
-        await _write('bake',{...bake.fields,'startedAt':bake.fields['startedAt']??at.toUtc().toIso8601String(),'completedSteps':history,'stepIndex':index+1,'status':finalStep?'complete':'active','state':finalStep?'complete':'active','completedAt':finalStep?at.toUtc().toIso8601String():null},bakeId,eventType:'BakeProgressed',occurredAt:at);
+        final iso = at.toUtc().toIso8601String();
+        await _write('bake',{...bake.fields,'startedAt':bake.fields['startedAt']??iso,'completedSteps':history,'stepIndex':index+1,'status':finalStep?'complete':'active','state':finalStep?'complete':'active','completedAt':finalStep?iso:null,
+          'progressedAt': iso, 'nextStepDueAt': due?.toUtc().toIso8601String(),
+          if (startedStarter != null) ...{'starterUsedAt': iso, 'starterStockDeducted': startedStarter},
+        },bakeId,eventType:'BakeProgressed',occurredAt:at);
+        final oldTimer = records('timer').where((timer) => timer.text('bakeId') == bakeId &&
+          timer.flag('guided') && timer.text('state') == 'running').firstOrNull;
+        if (oldTimer != null) {
+          await _write('timer', {...oldTimer.fields, 'state': 'acknowledged', 'acknowledgedAt': iso}, oldTimer.id);
+        }
+        if (next != null && due != null && due.isAfter(DateTime.now())) {
+          await _write('timer', {
+            'name': next['title'], 'bakeId': bakeId, 'bakeName': bake.text('name'), 'stepId': next['id'],
+            'startedAt': iso, 'dueAt': due.toUtc().toIso8601String(), 'guided': true,
+            'durationSeconds': due.difference(at).inSeconds, 'state': 'running',
+          }, _uuid.v4());
+        }
         if(finalStep)await _write('journal',{'bakeId':bakeId,'name':bake.text('name'),'recipeSnapshot':bake.fields['recipeSnapshot'],'ingredients':bake.fields['ingredients'],'completedSteps':history,'completedAt':at.toUtc().toIso8601String()},_uuid.v4(),eventType:'BakeJournalled',occurredAt:at);
       });await load();
     } finally { _stepLocks.remove(bakeId); }
+  }
+  DateTime? _guidedDeadline(Map<String, dynamic> previous, Map<String, dynamic>? next, DateTime at) {
+    if (next == null) return null;
+    final nextStart = DateTime.tryParse('${next['plannedStart']}');
+    final previousEnd = DateTime.tryParse('${previous['plannedEnd']}');
+    final nextEnd = DateTime.tryParse('${next['plannedEnd']}');
+    final wait = ['check', 'wait'].contains(next['kind']);
+    var duration = Duration.zero;
+    if (wait && nextStart != null && nextEnd != null) duration = nextEnd.difference(nextStart);
+    if (nextStart != null && previousEnd != null && nextStart.isAfter(previousEnd)) {
+      duration += nextStart.difference(previousEnd);
+    }
+    return duration > Duration.zero ? at.add(duration) : null;
+  }
+
+  @override
+  Future<void> saveBakeSchedule(AppRecord bake, Map<String, dynamic> fields) async {
+    if (!_stepLocks.add(bake.id)) throw BakeScheduleChanged();
+    try {
+      await db.transaction(() async {
+        final row = await db.customSelect(
+          "SELECT revision FROM records WHERE id = ? AND kind = 'bake' AND deleted_at IS NULL",
+          variables: [Variable.withString(bake.id)],
+        ).getSingleOrNull();
+        if (row?.read<int>('revision') != bake.revision) throw BakeScheduleChanged();
+        await _write('bake', fields, bake.id, eventType: 'BakeScheduleUpdated');
+        if (fields['nextStepDueAt'] != bake.fields['nextStepDueAt']) {
+          for (final timer in records('timer').where((timer) =>
+            timer.text('bakeId') == bake.id && timer.flag('guided') && timer.text('state') == 'running')) {
+            await _write('timer', {...timer.fields, 'state': 'canceled'}, timer.id);
+          }
+        }
+      });
+      await load();
+    } finally {
+      _stepLocks.remove(bake.id);
+    }
+  }
+
+  Future<bool?> _useStarterForStep(AppRecord bake, List<Map<String, dynamic>> steps, int index, DateTime at) async {
+    final id = bake.text('starterId');
+    final amount = bake.number('starterGrams');
+    if (id.isEmpty || amount <= 0 || bake.fields['starterUsedAt'] != null) return null;
+    final starters = _maps(bake.fields['ingredients']).where((item) => item['role'] == 'starter');
+    final ingredientIds = starters.map((item) => item['id'] ?? item['ingredientId']).whereType<String>().toSet();
+    var usesAt = steps.indexWhere((step) => (step['ingredientIds'] as List? ?? []).any(ingredientIds.contains));
+    if (usesAt < 0) usesAt = 0;
+    if (index != usesAt) return null;
+    final row = await db.customSelect(
+      "SELECT fields FROM records WHERE id = ? AND kind = 'starter' AND deleted_at IS NULL",
+      variables: [Variable.withString(id)],
+    ).getSingleOrNull();
+    if (row == null) return false;
+    final fields = Map<String, dynamic>.from(jsonDecode(row.read<String>('fields')) as Map);
+    final mass = fields['mass'];
+    final reconciled = DateTime.tryParse('${fields['stockReconciledAt'] ?? ''}');
+    final fed = DateTime.tryParse('${fields['lastFeedAt'] ?? ''}');
+    if (fields['archived'] == true || mass is! num || mass < amount || (reconciled?.isAfter(at) ?? false) ||
+        (fed?.isAfter(at) ?? false)) return false;
+    final left = (Rational.fromNum(mass) - Rational.fromNum(amount)).toDouble();
+    final iso = at.toUtc().toIso8601String();
+    await _write('correction', {
+      'correctsId': id, 'bakeId': bake.id, 'usedGrams': amount, 'beforeGrams': mass,
+      'afterGrams': left, 'name': 'Starter used', 'correction': bake.text('name'), 'occurredAt': iso,
+    }, _uuid.v4(), eventType: 'StockWithdrawn', occurredAt: at);
+    await _write('starter', {...fields, 'mass': left, 'stockReconciledAt': iso},
+      id, eventType: 'StockProjectionUpdated', occurredAt: at);
+    return true;
   }
   Map<String,LocalPhoto> _referencedPhotos(Iterable<Map<String,dynamic>> records) {
     final photos=<String,LocalPhoto>{};
@@ -177,7 +407,7 @@ class LocalAppStore extends AppStore {
         for(final row in await db.customSelect('SELECT * FROM preferences').get()) {
           final key=row.read<String>('key');
           // Installation identity and deletion retry metadata never migrate devices.
-          if(key=='syncDeviceId'||key=='pendingMediaDeletion')continue;
+          if(key=='syncDeviceId'||key=='pendingMediaDeletion'||key==analyticsConsentKey)continue;
           preferences[key]=jsonDecode(row.read<String>('value'));
         }
         return (records:records,events:events.map((r)=>r.data).toList(),preferences:preferences);
@@ -262,7 +492,7 @@ class LocalAppStore extends AppStore {
         if(count==0&&data['preferences'] is Map) {
           for(final entry in (data['preferences'] as Map).entries) {
             if(entry.key is! String)throw const FormatException('Invalid preference key.');
-            if(entry.key=='syncDeviceId'||entry.key=='pendingMediaDeletion')continue;
+            if(entry.key=='syncDeviceId'||entry.key=='pendingMediaDeletion'||entry.key==analyticsConsentKey)continue;
             await db.customStatement('INSERT OR REPLACE INTO preferences (key,value) VALUES (?,?)',[entry.key,jsonEncode(entry.value)]);
           }
         }

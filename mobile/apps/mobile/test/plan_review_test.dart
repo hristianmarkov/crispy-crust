@@ -23,13 +23,18 @@ void main(){
  Future<void> reveal(WidgetTester tester,String text)async{await tester.scrollUntilVisible(find.text(text),250,scrollable:find.byType(Scrollable).first);await Scrollable.ensureVisible(tester.element(find.text(text)),alignment:.5);await tester.pumpAndSettle();expect(find.text(text).hitTestable(),findsOneWidget);}
  testWidgets('review and cancellation create no accepted schedule', (tester)async{
   final accepted=<Map<String,dynamic>>[];await mount(tester,candidate(),accepted);
-  expect(accepted,isEmpty);expect(find.textContaining('No actions have been recorded'),findsOneWidget);
+  expect(accepted,isEmpty);expect(find.text('Review this schedule'),findsOneWidget);
+  await tester.tap(find.text('Mix'));
+  await tester.pumpAndSettle();
+  expect(find.byType(BottomSheet), findsOneWidget);
+  Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+  await tester.pumpAndSettle();
   await reveal(tester,'Change my inputs');await tester.tap(find.text('Change my inputs'));await tester.pumpAndSettle();
   expect(accepted,isEmpty);expect(find.text('Open proposed schedule'),findsOneWidget);expect(tester.takeException(),isNull);
  });
  testWidgets('accept returns the exact candidate that was shown without editing it', (tester)async{
   final accepted=<Map<String,dynamic>>[],reviewed=candidate();await mount(tester,reviewed,accepted);
-  await reveal(tester,'Accept this schedule');await tester.tap(find.text('Accept this schedule'));await tester.pumpAndSettle();
+  await reveal(tester,'Save bake');await tester.tap(find.text('Save bake'));await tester.pumpAndSettle();
   expect(accepted,hasLength(1));expect(accepted.single,reviewed.toJson());expect(reviewed.task('mix').start,DateTime.utc(2026,11,16,9));expect(tester.takeException(),isNull);
  });
 }

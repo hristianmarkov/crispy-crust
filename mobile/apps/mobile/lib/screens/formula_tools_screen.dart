@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:baking_domain/baking_domain.dart';
 import 'package:flutter/material.dart';
+import 'kitchen_design.dart';
 import '../platform/export_share.dart';
 
 /// Parse decimal-dot or decimal-comma input exactly. Commas never mean grouping;
@@ -83,6 +84,38 @@ class FormulaToolsScreen extends StatelessWidget {
   const FormulaToolsScreen({super.key});
   @override Widget build(BuildContext context)=>DefaultTabController(length:3,child:Scaffold(appBar:AppBar(title:const Text('Exact formula and feed tools'),bottom:const TabBar(isScrollable:true,tabAlignment:TabAlignment.start,tabs:[Tab(text:'Weigh-in'),Tab(text:'Percentages'),Tab(text:'Starter build')])),body:const TabBarView(children:[_PhysicalTool(),_BakerTool(),_FeedTool()])));
 }
+
+class StarterBuildScreen extends StatelessWidget {
+  const StarterBuildScreen({
+    super.key,
+    required this.subject,
+    this.recipeMass,
+    this.scale = 1,
+    this.seedHydration,
+    this.availableSeed,
+  });
+
+  final String subject;
+  final num? recipeMass;
+  final double scale;
+  final num? seedHydration;
+  final num? availableSeed;
+
+  @override
+  Widget build(BuildContext context) {
+    final mass = recipeMass;
+    return Scaffold(
+      appBar: AppBar(title: Text('Starter build for $subject')),
+      body: _FeedTool(
+        requiredMass: mass == null
+            ? ''
+            : (Rational.fromNum(mass) * Rational.fromNum(scale)).toString(),
+        seedHydration: seedHydration?.toString() ?? '100',
+        availableSeed: availableSeed?.toString() ?? '',
+      ),
+    );
+  }
+}
 class _QuantityField extends StatelessWidget {
   const _QuantityField(this.controller,this.label,{this.onChanged});
   final TextEditingController controller;final String label;final VoidCallback? onChanged;
@@ -119,9 +152,10 @@ class _PhysicalToolState extends State<_PhysicalTool> {
   void calculate(){try{final value=calculatePhysicalTool(rows.map((r)=>r.input()).toList(),targetDough:scale=='target'?target.text:null,multiplier:scale=='factor'?factor.text:null);setState((){result=value;error='';});}catch(e){setState((){result=null;error=e.toString();});}}
   @override Widget build(BuildContext context) {
     final value=result;final names={for(final row in rows)row.id:row.name.text};
-    return ListView(padding:const EdgeInsets.all(20),children:[const Text(_inputNote),const SizedBox(height:16),const Text('Enter each physical ingredient once. A preferment is one weighed ingredient; its flour and water are counted internally and must not be entered again as separate additions.'),const SizedBox(height:16),
+    return KitchenPage(children:[const Text(_inputNote),const SizedBox(height:16),const Text('Enter each physical ingredient once. A preferment is one weighed ingredient; its flour and water are counted internally and must not be entered again as separate additions.'),const SizedBox(height:16),
       for(final row in rows)Card(key:ValueKey(row.id),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[TextField(controller:row.name,decoration:const InputDecoration(labelText:'Ingredient name'),onChanged:(_)=>clear()),const SizedBox(height:12),DropdownButtonFormField<String>(initialValue:row.role,isExpanded:true,decoration:const InputDecoration(labelText:'What is weighed?'),items:const [DropdownMenuItem(value:'flour',child:Text('Added flour')),DropdownMenuItem(value:'water',child:Text('Added plain water')),DropdownMenuItem(value:'preferment',child:Text('Starter / levain / preferment')),DropdownMenuItem(value:'salt',child:Text('Added salt')),DropdownMenuItem(value:'other',child:Text('Other inclusion (no water guessed)'))],onChanged:(v){if(v!=null)setState((){row.role=v;result=null;});}),const SizedBox(height:16),_QuantityField(row.grams,'Physical weight (g)',onChanged:clear),if(row.role=='preferment')_QuantityField(row.hydration,'This preferment’s hydration (%)',onChanged:clear),TextButton(onPressed:rows.length<=1?null:(){setState((){rows.remove(row);result=null;});row.dispose();},child:const Text('Remove this ingredient'))]))),
       OutlinedButton.icon(onPressed:rows.length>=40?null:()=>setState((){rows.add(_PhysicalRow('ingredient-${nextId++}','New ingredient','0','other'));result=null;}),icon:const Icon(Icons.add),label:const Text('Add physical ingredient')),
+      const SizedBox(height:16),
       DropdownButtonFormField<String>(initialValue:scale,isExpanded:true,decoration:const InputDecoration(labelText:'Scale this formula'),items:const [DropdownMenuItem(value:'none',child:Text('Keep these physical weights')),DropdownMenuItem(value:'target',child:Text('Target total dough mass')),DropdownMenuItem(value:'factor',child:Text('Multiply the whole formula'))],onChanged:(v)=>setState((){scale=v??'none';result=null;})),const SizedBox(height:16),if(scale=='target')_QuantityField(target,'Target total dough (g)',onChanged:clear),if(scale=='factor')_QuantityField(factor,'Batch multiplier',onChanged:clear),
       FilledButton(onPressed:calculate,child:const Text('Calculate exact physical formula')),if(error.isNotEmpty)Semantics(liveRegion:true,child:Text(error)),
       if(value!=null)...[const SizedBox(height:16),_FormulaRows({for(final i in value.formula.ingredients)i.id:i.grams},title:'Exact physical grams',names:names),Text('Total dough: ${value.formula.totalDough} g\nTotal flour including preferments: ${value.formula.totalFlour} g\nCounted water: ${value.formula.totalWater} g\nHydration: ${value.formula.hydration!*Rational.fromNum(100)}%\nPrefermented flour: ${value.prefermentedFlourPercent}% of total flour\nExplicit added salt: ${value.saltPercent}% of total flour'),const Text('Milk, egg and other inclusion water is excluded unless defined elsewhere. No cups conversion or substitution is guessed.'),
@@ -149,20 +183,30 @@ class _BakerToolState extends State<_BakerTool> {
   @override Widget build(BuildContext context) {
     final value=result;WeighOut? weigh;String? roundingError;
     try{weigh=value?.roundForScale(incrementGrams:increment);}catch(e){roundingError='Choose finer scale precision; exact values are preserved. $e';}
-    return ListView(padding:const EdgeInsets.all(20),children:[const Text(_inputNote),const SizedBox(height:16),const Text('Total flour includes all flour inside preferments. “10% prefermented flour” is not “10% starter mass”. Each named preferment replaces the generic starter definition.'),const SizedBox(height:16),_QuantityField(flour,'Total flour, including preferment flour (g)',onChanged:clear),_QuantityField(hydration,'Overall water-to-total-flour hydration (%)',onChanged:clear),_QuantityField(salt,'Salt as percentage of total flour (%)',onChanged:clear),for(final preferment in preferments)Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(preferment.id),_QuantityField(preferment.flour,'Flour inside this preferment (% of total flour)',onChanged:clear),_QuantityField(preferment.hydration,'This preferment’s hydration (%)',onChanged:clear),TextButton(onPressed:preferments.length<=1?null:(){setState((){preferments.remove(preferment);result=null;});preferment.dispose();},child:const Text('Remove this preferment'))]))),OutlinedButton(onPressed:preferments.length>=12?null:()=>setState((){preferments.add(_PrefermentRow('levain-${nextId++}'));result=null;}),child:const Text('Add another preferment')),
+    return KitchenPage(children:[const Text(_inputNote),const SizedBox(height:16),const Text('Total flour includes all flour inside preferments. “10% prefermented flour” is not “10% starter mass”. Each named preferment replaces the generic starter definition.'),const SizedBox(height:16),_QuantityField(flour,'Total flour, including preferment flour (g)',onChanged:clear),_QuantityField(hydration,'Overall water-to-total-flour hydration (%)',onChanged:clear),_QuantityField(salt,'Salt as percentage of total flour (%)',onChanged:clear),for(final preferment in preferments)Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(preferment.id),_QuantityField(preferment.flour,'Flour inside this preferment (% of total flour)',onChanged:clear),_QuantityField(preferment.hydration,'This preferment’s hydration (%)',onChanged:clear),TextButton(onPressed:preferments.length<=1?null:(){setState((){preferments.remove(preferment);result=null;});preferment.dispose();},child:const Text('Remove this preferment'))]))),OutlinedButton(onPressed:preferments.length>=12?null:()=>setState((){preferments.add(_PrefermentRow('levain-${nextId++}'));result=null;}),child:const Text('Add another preferment')),
       SwitchListTile(contentPadding:EdgeInsets.zero,value:targetEnabled,onChanged:(v)=>setState((){targetEnabled=v;result=null;}),title:const Text('Scale to a target dough mass')),if(targetEnabled)_QuantityField(target,'Target total dough mass (g)',onChanged:clear),FilledButton(onPressed:calculate,child:const Text('Calculate baker’s formula')),if(error.isNotEmpty)Semantics(liveRegion:true,child:Text(error)),if(value!=null)...[const SizedBox(height:16),_FormulaRows(value.ingredients,title:'Exact physical additions'),Text('Dough: ${value.totalDough} g\nPreferment flour already counted: ${value.starterFlour} g\nPreferment water already counted: ${value.starterWater} g\nOverall hydration: ${value.definition.hydration*Rational.fromNum(100)}%'),const Text('Do not weigh the component flour/water again. Only the physical additions in the table go into the bowl.'),DropdownButtonFormField<num>(initialValue:increment,decoration:const InputDecoration(labelText:'Weigh-out precision'),items:const [DropdownMenuItem(value:1,child:Text('1 g')),DropdownMenuItem(value:0.1,child:Text('0.1 g'))],onChanged:(v)=>setState(()=>increment=v??1)),if(roundingError!=null)Text(roundingError),if(weigh!=null)...[_FormulaRows(weigh.ingredients,title:'Rounded weigh-out only'),Text('Rounded dough ${weigh.totalDough} g; residual ${weigh.roundingResidual} g applied to ${weigh.residualIngredient}. Exact stored calculation remains unchanged.')],_ExportToolButton(value.toJson())],
     ]);
   }
 }
-class _FeedTool extends StatefulWidget {const _FeedTool();@override State<_FeedTool> createState()=>_FeedToolState();}
+class _FeedTool extends StatefulWidget {
+  const _FeedTool({this.requiredMass = '200', this.seedHydration = '100', this.availableSeed = ''});
+
+  final String requiredMass, seedHydration, availableSeed;
+
+  @override
+  State<_FeedTool> createState() => _FeedToolState();
+}
 class _FeedToolState extends State<_FeedTool> {
-  final requiredMass=TextEditingController(text:'200'),retain=TextEditingController(text:'20'),allowance=TextEditingController(text:'0'),seedParts=TextEditingController(text:'1'),flourParts=TextEditingController(text:'2'),waterParts=TextEditingController(text:'2'),hydration=TextEditingController(text:'100'),available=TextEditingController();FeedBuildResult? result;String error='';
+  late final requiredMass = TextEditingController(text: widget.requiredMass);
+  late final hydration = TextEditingController(text: widget.seedHydration);
+  late final available = TextEditingController(text: widget.availableSeed);
+  final retain=TextEditingController(text:'20'),allowance=TextEditingController(text:'0'),seedParts=TextEditingController(text:'1'),flourParts=TextEditingController(text:'2'),waterParts=TextEditingController(text:'2');FeedBuildResult? result;String error='';
   @override void dispose(){for(final c in [requiredMass,retain,allowance,seedParts,flourParts,waterParts,hydration,available])c.dispose();super.dispose();}
   void clear()=>setState((){result=null;error='';});
   void calculate(){try{final value=calculateFeedTool(requiredMass:requiredMass.text,retainMass:retain.text,allowance:allowance.text,seedParts:seedParts.text,flourParts:flourParts.text,waterParts:waterParts.text,seedHydration:hydration.text,availableSeed:available.text.trim().isEmpty?null:available.text);setState((){result=value;error='';});}catch(e){setState((){result=null;error=e.toString();});}}
   @override Widget build(BuildContext context) {
     final value=result;
-    return ListView(padding:const EdgeInsets.all(20),children:[const Text('This plans one combined build that you later split. It does not log a feed or change your jar stock. The final mass includes the seed already in the bowl; it is not the amount of new flour/water to add.'),const SizedBox(height:16),_QuantityField(requiredMass,'Amount to use in recipe (g)',onChanged:clear),_QuantityField(retain,'Amount to retain as mother starter (g)',onChanged:clear),_QuantityField(allowance,'Handling allowance (g; optional planned margin)',onChanged:clear),_QuantityField(seedParts,'Ratio: seed parts',onChanged:clear),_QuantityField(flourParts,'Ratio: flour parts',onChanged:clear),_QuantityField(waterParts,'Ratio: water parts',onChanged:clear),_QuantityField(hydration,'Hydration of seed (%)',onChanged:clear),_QuantityField(available,'Available seed (g; leave blank if unknown)',onChanged:clear),FilledButton(onPressed:calculate,child:const Text('Calculate exact starter build')),if(error.isNotEmpty)Semantics(liveRegion:true,child:Text(error)),if(value!=null)...[const SizedBox(height:16),_FormulaRows({'seed':value.seed,'new flour':value.flour,'new water':value.water},title:'What goes into the build'),Text('Final combined build: ${value.total} g\nUse in recipe: ${value.used} g\nRetain in jar: ${value.retained} g\nHandling allowance: ${value.wasteAllowance} g\nResulting hydration: ${value.hydration*Rational.fromNum(100)}%'),const Text('Confirm actual weights in the feed log when you physically feed. An allowance is not an automatic discard or a safety assessment.'),_ExportToolButton(value.toJson())],
+    return KitchenPage(children:[const Text('This plans one combined build that you later split. It does not log a feed or change your jar stock. The final mass includes the seed already in the bowl; it is not the amount of new flour/water to add.'),const SizedBox(height:16),_QuantityField(requiredMass,'Amount to use in recipe (g)',onChanged:clear),_QuantityField(retain,'Amount to retain as mother starter (g)',onChanged:clear),_QuantityField(allowance,'Handling allowance (g; optional planned margin)',onChanged:clear),_QuantityField(seedParts,'Ratio: seed parts',onChanged:clear),_QuantityField(flourParts,'Ratio: flour parts',onChanged:clear),_QuantityField(waterParts,'Ratio: water parts',onChanged:clear),_QuantityField(hydration,'Hydration of seed (%)',onChanged:clear),_QuantityField(available,'Available seed (g; leave blank if unknown)',onChanged:clear),FilledButton(onPressed:calculate,child:const Text('Calculate exact starter build')),if(error.isNotEmpty)Semantics(liveRegion:true,child:Text(error)),if(value!=null)...[const SizedBox(height:16),_FormulaRows({'seed':value.seed,'new flour':value.flour,'new water':value.water},title:'What goes into the build'),Text('Final combined build: ${value.total} g\nUse in recipe: ${value.used} g\nRetain in jar: ${value.retained} g\nHandling allowance: ${value.wasteAllowance} g\nResulting hydration: ${value.hydration*Rational.fromNum(100)}%'),const Text('Confirm actual weights in the feed log when you physically feed. An allowance is not an automatic discard or a safety assessment.'),_ExportToolButton(value.toJson())],
     ]);
   }
 }

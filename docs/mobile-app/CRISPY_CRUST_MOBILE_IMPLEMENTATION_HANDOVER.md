@@ -2,6 +2,12 @@
 
 **Handover date:** 11 November 2026 (Europe/London). **Repository:** https://github.com/hristianmarkov/crispy-crust. **Development branch:** `feat/flutter-mobile-app`. **Draft PR:** https://github.com/hristianmarkov/crispy-crust/pull/3.
 
+For work after this handover, see the [running release checklist](../../mobile/IMPLEMENTATION_STATUS.md) and [owner setup](../../mobile/OWNER_SETUP.md).
+
+Read [Launch status](LAUNCH_STATUS.md) first for the latest 18 November checkpoint. The paywall is published, server allowance/webhook updates deployed, public policy pages live, and core UI screenshots uploaded to Apple and Google. Google billing validation/base plans, remaining declarations, owner acceptance, closed testing and signed candidates remain outstanding. New release builds and uploads were authorized on 20 November. Historical snapshots below must not be read as the current checklist.
+
+The 16 November kitchen redesign centres Home on starting and continuing a bake. The five tabs are Starters, Recipes, Home, Features and Journal. New local records include optional feed reminder settings on starter jars and a recipe step reference on guided timers. The update uses the existing database and sync record types. Use the release checklist for Android build 3 verification and current device acceptance.
+
 This is the continuation document beside [the original complete build plan](CRISPY_CRUST_BUILD_PLAN.md). Read both. The original describes the intended product; this document describes the actual implementation, live infrastructure, verification and work left. **The whole product is not finished or ready for public launch.** Continue the full scope locally; do not mistake successful compilation or a source adapter for accepted product functionality.
 
 ## 1. Start here: exact state being handed over

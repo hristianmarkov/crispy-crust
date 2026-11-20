@@ -144,8 +144,7 @@
           ]
         },
         "readinessCue": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         },
         "lessonId": {
           "type": [

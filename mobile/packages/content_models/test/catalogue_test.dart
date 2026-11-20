@@ -11,7 +11,7 @@ List<String> errors(Map<String,dynamic> json)=>const ContentValidator()
 void main() {
   test('all commissioned recipes and lessons parse and conserve physical mass',() {
     final catalogue=ContentCatalogue.fromJson(fixture());
-    expect(catalogue.recipes.length,24);
+    expect(catalogue.recipes.length,30);
     expect(catalogue.lessons.length,18);
     expect(errors(fixture()),isEmpty);
     expect(catalogue.recipeById('R01')!.hydrationPercent,65);
@@ -23,7 +23,7 @@ void main() {
     expect(catalogue.recipes.every((r)=>r.experimental && !r.kitchenValidated && r.requiresExplicitAcceptance),isTrue);
     expect(catalogue.recipes.any((r)=>r.canRunAutomatically),isFalse);
     final issues=const ContentValidator().validate(catalogue,forPublication:true);
-    expect(issues.where((i)=>i.code=='NOT_PUBLICATION_READY').length,24);
+    expect(issues.where((i)=>i.code=='NOT_PUBLICATION_READY').length,30);
     expect(issues.where((i)=>i.code=='DEMONSTRATION_PENDING').length,18);
     expect(issues.where((i)=>i.code=='GUIDANCE_REVIEW_PENDING').length,2);
   });

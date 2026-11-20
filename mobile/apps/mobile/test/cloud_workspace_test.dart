@@ -7,12 +7,13 @@ import 'package:crispy_crust/screens/cloud_workspace_screen.dart';
 class FakeCloudApi implements CloudWorkspaceApi {
   final calls=<Map<String,dynamic>>[];
   String? failPath;
+  Map<String, dynamic>? job;
   @override Future<dynamic> request(String path,{String method='GET',Map<String,dynamic>? body})async{
     calls.add({'path':path,'method':method,'body':body});
     if(path==failPath)throw const CloudWorkspaceException('PROVIDER_UNAVAILABLE','The provider is unavailable.');
     if(path=='/kitchens')return [{'id':'11111111-1111-4111-8111-111111111111','name':'Home','kind':'personal'}];
     if(path=='/coach/requests')return {'job_id':'22222222-2222-4222-8222-222222222222','status':'queued'};
-    if(path.startsWith('/jobs/'))return [{'id':path.split('/').last,'status':'failed','error_code':'PROVIDER_NOT_CONFIGURED'}];
+    if(path.startsWith('/jobs/'))return [{'id':path.split('/').last,'status':'failed','error_code':'PROVIDER_NOT_CONFIGURED',...?job}];
     if(path=='/community/feed')return [];
     return {'ok':true};
   }
@@ -23,6 +24,45 @@ void main(){
   tearDown(()async{store.dispose();await db.close();});
   Future<void> mount(WidgetTester tester)async{await tester.binding.setSurfaceSize(const Size(500,1000));addTearDown(()=>tester.binding.setSurfaceSize(null));await tester.pumpWidget(MaterialApp(home:CloudWorkspaceScreen.withApi(store:store,api:api)));await tester.pumpAndSettle();}
   Future<void> settleDialog(WidgetTester tester)async{await tester.pumpAndSettle();await tester.pump(const Duration(milliseconds:300));await tester.pumpAndSettle();}
+  testWidgets('completed import opens an attributed draft with no assumed weights or durations', (tester) async {
+    api.job = {
+      'kind': 'import', 'status': 'complete', 'error_code': null,
+      'result': {
+        'title': 'Example loaf', 'source_uri': 'https://example.test/loaf',
+        'ingredients': ['2 cups flour'],
+        'instructions': [{'itemListElement': [{'text': 'Mix the ingredients.'}]}],
+      },
+    };
+    await mount(tester);
+    await tester.tap(find.text('Help & jobs'));
+    await tester.pumpAndSettle();
+    final lookup = find.text('Look up a request job');
+    await tester.scrollUntilVisible(lookup, 200);
+    await Scrollable.ensureVisible(tester.element(lookup), alignment: .5);
+    await tester.pumpAndSettle();
+    expect(lookup.hitTestable(), findsOneWidget);
+    await tester.tap(lookup);
+    await tester.pumpAndSettle();
+    const jobId = '22222222-2222-4222-8222-222222222222';
+    await tester.enterText(find.byType(TextField), jobId);
+    await tester.tap(find.text('Continue'));
+    await settleDialog(tester);
+    await tester.tap(find.text('Review in private recipe editor'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 cups flour'), findsOneWidget);
+    final save = find.text('Save incomplete draft');
+    final scroll = find.descendant(of: find.byKey(const ValueKey('private-recipe-scroll')), matching: find.byType(Scrollable)).first;
+    await tester.scrollUntilVisible(save, 300, scrollable: scroll);
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    final draft = store.records('recipe').single;
+    expect(draft.text('source'), 'https://example.test/loaf');
+    expect(draft.text('importJobId'), jobId);
+    expect(draft.fields['steps'], isEmpty);
+    expect(((draft.fields['draftIngredients'] as List).single as Map)['grams'], '');
+    expect(((draft.fields['draftSteps'] as List).single as Map)['instructions'], 'Mix the ingredients.');
+  }, timeout: const Timeout(Duration(seconds: 60)));
   testWidgets('opening cloud workspace reads membership but never uploads local records', (tester)async{
     await tester.runAsync(()=>store.save('starter',{'name':'Private starter','hydration':100}));
     await mount(tester);

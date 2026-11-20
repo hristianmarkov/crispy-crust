@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:crispy_crust/data/starter_routine.dart';
 import 'package:crispy_crust/data/app_store.dart';
 import 'package:crispy_crust/screens/starter_insights_screen.dart';
 
@@ -20,7 +21,7 @@ class MemoryStarterStore extends AppStore {
   @override String get storageDescription=>'Stored on this device';
   @override dynamic preference(String key,[dynamic fallback])=>fallback;
   @override Future<void> setPreference(String key,dynamic value) async {}
-  @override Future<AppRecord> createBake(Map<String,dynamic> recipe,{double scale=1,DateTime? serveAt,DateTime? startAt,Map<String,dynamic>? expectedSchedule})=>throw UnsupportedError('not used');
+  @override Future<AppRecord> createBake(Map<String,dynamic> recipe,{double scale=1,DateTime? serveAt,DateTime? startAt,Map<String,dynamic>? expectedSchedule, bool beginImmediately = false, BakeSetup setup = const BakeSetup()})=>throw UnsupportedError('not used');
   @override Future<void> completeStep(String bakeId,{DateTime? occurredAt,int? expectedIndex})=>throw UnsupportedError('not used');
   @override Future<void> logFeed(String starterId,{required double seed,required double flour,required double water,DateTime? occurredAt})=>throw UnsupportedError('not used');
   @override Future<String> exportArchive()=>throw UnsupportedError('not used');
@@ -39,6 +40,34 @@ Future<void> evidence(MemoryStarterStore store,{int historicalFeeds=5,bool confi
   await store.save('observation',{'objectId':'jar','feedId':'latest-feed','peak':'not_yet','contextConfirmed':true,'feedContext':conditions(),'occurredAt':'2026-11-11T09:00:00Z'},id:'latest-context');
 }
 void main() {
+  test('a recorded feed resets a confirmed recurrence and travel requires explicit resumption', () async {
+    final store = MemoryStarterStore();
+    addTearDown(store.dispose);
+    final configured = DateTime.utc(2026, 11, 12, 9);
+    final first = DateTime.utc(2026, 11, 14, 10);
+    const interval = Duration(hours: 24);
+    final routine = StarterRoutine(interval.inHours, first.subtract(interval), configuredAt: configured);
+    final jar = await store.save('starter', {
+      'name': 'Matilda',
+      'storage': 'counter',
+      'lastFeedAt': configured.subtract(const Duration(hours: 6)).toIso8601String(),
+      'feedRoutine': routine.toJson(),
+    });
+    DateTime? due(AppRecord record) => StarterRoutine.read(record)?.dueAt(record);
+    expect(due(jar), first);
+    final actualFeed = configured.add(const Duration(hours: 5));
+    final fed = await store.save('starter', {
+      ...jar.fields, 'lastFeedAt': actualFeed.toIso8601String(),
+    }, id: jar.id);
+    expect(due(fed), actualFeed.add(interval));
+    await setStarterCareMode(store, jar.id, 'travel');
+    expect(due(store.find(jar.id)!), isNull);
+    await setStarterCareMode(store, jar.id, 'fridge');
+    expect(StarterRoutine.read(store.find(jar.id)!)?.paused, isTrue);
+    expect(due(store.find(jar.id)!), isNull);
+    expect(StarterRoutine.suggestedHours('fridge'), 168);
+  });
+
   test('five real comparable prior peaks produce an empirical window',() async {
     final store=MemoryStarterStore();await evidence(store);
     final result=analyseStarterEvidence(store,'jar',now:DateTime.utc(2026,11,11,10));

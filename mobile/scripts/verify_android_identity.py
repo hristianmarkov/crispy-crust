@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify real debug artifacts can participate in the same Wear Data Layer."""
 from pathlib import Path
+import json
 import os
 import re
 import shutil
@@ -16,7 +17,6 @@ for directory in (root / 'apps/mobile/build/wear/outputs/apk/debug',
                   root / 'native/wearos/app/build/outputs/apk/debug'):
     metadata_file = directory / 'output-metadata.json'
     if metadata_file.is_file():
-        import json
         metadata = json.loads(metadata_file.read_text())
         names = [row['outputFile'] for row in metadata.get('elements', []) if isinstance(row.get('outputFile'), str)]
         if len(names) != 1 or Path(names[0]).name != names[0]:
@@ -34,7 +34,8 @@ def tool(name):
     located = shutil.which(name)
     if located:
         return located
-    candidates = sorted((sdk / 'build-tools').glob(f'*/{name}'))
+    filename = {'aapt': 'aapt.exe', 'apksigner': 'apksigner.bat'}[name] if os.name == 'nt' else name
+    candidates = sorted((sdk / 'build-tools').glob(f'*/{filename}'))
     if not candidates:
         raise SystemExit(f'Android SDK tool {name} is required to verify built identities.')
     return str(candidates[-1])
@@ -46,10 +47,20 @@ def metadata(apk):
     package = re.search(r"^package: name='([^']+)'", package_output, re.M)
     if not package:
         raise SystemExit(f'Cannot read package identity from {apk.name}')
-    signer_output = subprocess.check_output([tool('apksigner'), 'verify', '--print-certs', str(apk)], text=True)
-    signers = set(re.findall(r'Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]+)', signer_output))
+    signer_output = subprocess.check_output(
+        [tool('apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], text=True,
+    )
+    # Build Tools 37 labels single signers by scheme. Older releases use
+    # numbered signers or SDK ranges. Source-stamp certificates are separate.
+    sdk_range = r'\(minSdkVersion=\d+(?: \(dev release=true\))?, maxSdkVersion=\d+\)'
+    signers = set(re.findall(
+        rf'^(?:Signer (?:#\d+|{sdk_range})|'
+        rf'(?:V[12]|V3\.[01]|V3\.2 Hybrid (?:Classical|PQC)) Signer:(?: {sdk_range})?)'
+        r' certificate SHA-256 digest: ([0-9a-fA-F]{64})$',
+        signer_output, re.MULTILINE,
+    ))
     if not signers:
-        raise SystemExit(f'No verified signing certificate in {apk}')
+        raise SystemExit(f'Cannot read verified signer SHA-256 digests in {apk}:\n{signer_output}')
     return package.group(1), {value.lower() for value in signers}
 
 phone_id, phone_signers = metadata(phone)

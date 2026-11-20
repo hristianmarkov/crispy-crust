@@ -1,5 +1,13 @@
 import 'dart:convert';
 
+bool duringQuietHours(DateTime localTime, int startMinute, int endMinute) {
+  if (startMinute == endMinute) return false;
+  final minute = localTime.hour * 60 + localTime.minute;
+  return startMinute < endMinute
+      ? minute >= startMinute && minute < endMinute
+      : minute >= startMinute || minute < endMinute;
+}
+
 /// A projection of persisted reminder intent. It is not the durable source of truth.
 class ReminderIntent {
   const ReminderIntent({required this.id, required this.aggregateId,

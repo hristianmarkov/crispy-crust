@@ -97,8 +97,10 @@ void main() {
     final name = find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Recipe name');
     await tester.enterText(name, 'Still working this out');
     final scroll = find.descendant(of: find.byKey(const ValueKey('private-recipe-scroll')), matching: find.byType(Scrollable)).first;
-    await tester.scrollUntilVisible(find.text('Save incomplete draft'), 400, scrollable: scroll);
-    await tester.tap(find.text('Save incomplete draft')); await tester.pumpAndSettle();
+    final saveDraft = find.widgetWithText(OutlinedButton, 'Save incomplete draft').hitTestable();
+    await tester.scrollUntilVisible(saveDraft, 240, scrollable: scroll);
+    await tester.pumpAndSettle();
+    await tester.tap(saveDraft); await tester.pumpAndSettle();
     expect(store.saved, hasLength(1));
     expect(store.saved.single.kind, 'recipe'); expect(store.saved.single.text('title'), 'Still working this out');
     expect(store.saved.single.fields['steps'], isEmpty); expect(store.saved.single.flag('schedulable'), isFalse);

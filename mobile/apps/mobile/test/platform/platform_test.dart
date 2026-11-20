@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:crispy_crust/platform/calendar_export.dart';
 import 'package:crispy_crust/platform/companion_snapshot.dart';
@@ -18,6 +19,30 @@ class FakeGateway implements ReminderGateway {
 }
 
 void main() {
+  test('native sign-in availability follows the mobile platform', () {
+    final cloud = CloudSessionService();
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    expect(cloud.supportsGoogleSignIn, isTrue);
+    expect(cloud.supportsAppleSignIn, isFalse);
+    expect(cloud.supportsAppleBrowserSignIn, isTrue);
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    expect(cloud.supportsGoogleSignIn, isTrue);
+    expect(cloud.supportsAppleSignIn, isTrue);
+    expect(cloud.supportsAppleBrowserSignIn, isFalse);
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    expect(cloud.supportsGoogleSignIn, isFalse);
+    expect(cloud.supportsAppleSignIn, isFalse);
+  });
+  test('routine quiet hours can span midnight and exclude the end boundary', () {
+    expect(duringQuietHours(DateTime(2026, 11, 12, 23), 22 * 60, 7 * 60), isTrue);
+    expect(duringQuietHours(DateTime(2026, 11, 13, 6, 59), 22 * 60, 7 * 60), isTrue);
+    expect(duringQuietHours(DateTime(2026, 11, 13, 7), 22 * 60, 7 * 60), isFalse);
+    expect(duringQuietHours(DateTime(2026, 11, 13, 7), 7 * 60, 7 * 60), isFalse);
+  });
   final now = DateTime.utc(2026, 11, 11, 10);
   ReminderIntent reminder(String id, int revision, int minutes) => ReminderIntent(
     id: id, aggregateId: 'bake-a', revision: revision, title: 'Country loaf',

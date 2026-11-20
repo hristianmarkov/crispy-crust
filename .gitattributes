@@ -1,0 +1,3 @@
+# Migration tests compare SQL files with their canonical concatenated sources.
+/mobile/backend/sql/*.sql text eol=lf
+/mobile/backend/supabase/migrations/*.sql text eol=lf

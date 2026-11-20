@@ -9,10 +9,10 @@ JsonObject _object(Object? value, String path) {
   return value;
 }
 
-String _string(JsonObject json, String key) {
+String _string(JsonObject json, String key, {bool allowEmpty = false}) {
   final value = json[key];
-  if (value is! String || value.trim().isEmpty) {
-    throw FormatException('$key must be a non-empty string');
+  if (value is! String || (!allowEmpty && value.trim().isEmpty)) {
+    throw FormatException('$key must be ${allowEmpty ? 'a' : 'a non-empty'} string');
   }
   return value;
 }
@@ -173,7 +173,7 @@ final class RecipeStep {
     if (lesson!=null && lesson is! String) throw const FormatException('lessonId must be a string or null');
     return RecipeStep._(_string(json,'id'),_string(json,'title'),
       _string(json,'instructions'),_integer(json,'durationMinutes'),
-      _string(json,'kind'),_string(json,'readinessCue'),lesson as String?,
+      _string(json,'kind'),_string(json,'readinessCue',allowEmpty:true),lesson as String?,
       _strings(json,'resources'),_strings(json,'after'),
       _strings(json,'ingredientIds'),_string(json,'timingStatus'));
   }

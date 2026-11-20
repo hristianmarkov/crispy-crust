@@ -4,16 +4,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 class SubscriptionConfiguration {
-  const SubscriptionConfiguration({this.iosKey = '', this.androidKey = ''});
+  const SubscriptionConfiguration({this.iosKey = '', this.androidKey = '', this.testStoreKey = ''});
   const SubscriptionConfiguration.fromEnvironment()
     : iosKey = const String.fromEnvironment('REVENUECAT_IOS_PUBLIC_SDK_KEY'),
-      androidKey = const String.fromEnvironment('REVENUECAT_ANDROID_PUBLIC_SDK_KEY');
-  final String iosKey, androidKey;
+      androidKey = const String.fromEnvironment('REVENUECAT_ANDROID_PUBLIC_SDK_KEY'),
+      testStoreKey = kDebugMode ? const String.fromEnvironment('REVENUECAT_TEST_STORE_PUBLIC_SDK_KEY') : '';
+  final String iosKey, androidKey, testStoreKey;
   String? keyFor(TargetPlatform platform) {
+    if (kDebugMode && testStoreKey.startsWith('test_') && testStoreKey.length > 10 &&
+        (platform == TargetPlatform.iOS || platform == TargetPlatform.android)) { return testStoreKey; }
     if (platform == TargetPlatform.iOS && iosKey.startsWith('appl_') && iosKey.length > 10) { return iosKey; }
     if (platform == TargetPlatform.android && androidKey.startsWith('goog_') && androidKey.length > 10) { return androidKey; }
     return null;
@@ -138,6 +142,20 @@ class RevenueCatStoreGateway implements SubscriptionStoreGateway {
   static StreamSubscription<AuthState>? _authSubscription;
   static String? _observedAuthUser;
   final _packages = <String, Package>{};
+
+  Future<void> presentPaywall(String expectedUserId) => _serialized(() async {
+    await _assertIdentity(expectedUserId);
+    final offering = (await Purchases.getOfferings()).current;
+    await _assertIdentity(expectedUserId);
+    if (offering == null || offering.availablePackages.isEmpty) {
+      throw const SubscriptionFailure('OFFERING_UNAVAILABLE', 'Plans are temporarily unavailable. Please try again later.');
+    }
+    final result = await RevenueCatUI.presentPaywall(offering: offering, displayCloseButton: true);
+    await _assertIdentity(expectedUserId);
+    if (result == PaywallResult.error || result == PaywallResult.notPresented) {
+      throw const SubscriptionFailure('PAYWALL_UNAVAILABLE', 'The store could not open the plans. Please try again.');
+    }
+  });
 
   /// Keep account cleanup active after a settings screen closes. This guard
   /// never configures the SDK or makes an anonymous purchase; it only removes
@@ -295,6 +313,11 @@ class SubscriptionService extends ChangeNotifier {
     return Future.value();
   }
   Future<void> refresh() => _serialized(() => _perform());
+  Future<void> showPaywall() {
+    if (_mutationQueued || !canPurchase || gateway is! RevenueCatStoreGateway) { return Future.value(); }
+    _mutationQueued = true;
+    return _serialized(() => _perform(paywall: true)).whenComplete(() => _mutationQueued = false);
+  }
   Future<void> purchase(String offeringId) {
     if (_mutationQueued || state == SubscriptionState.loading) { return Future.value(); }
     _mutationQueued = true;
@@ -306,7 +329,7 @@ class SubscriptionService extends ChangeNotifier {
     return _serialized(() => _perform(restore: true)).whenComplete(() => _mutationQueued = false);
   }
 
-  Future<void> _perform({String? purchaseId, bool restore = false}) async {
+  Future<void> _perform({String? purchaseId, bool restore = false, bool paywall = false}) async {
     if (_disposed) { return; }
     final user = currentUserId();
     final generation = _generation;
@@ -318,11 +341,19 @@ class SubscriptionService extends ChangeNotifier {
     if (purchaseId != null && (!canPurchase || accountId != user || !offerings.any((o) => o.id == purchaseId))) {
       message = 'Refresh a server-verified status and current store offering before purchasing.'; _notify(); return;
     }
+    if (paywall && (!canPurchase || accountId != user)) {
+      message = 'Refresh subscription status for this account before opening plans.'; _notify(); return;
+    }
     state = SubscriptionState.loading; message = 'Checking store and service status…'; _notify();
     try {
       await gateway.bind(key, user); _assertUser(user, generation);
       // bind invalidates package handles, so reload before purchasing.
       final currentOfferings = await gateway.offerings(user); _assertUser(user, generation);
+      if (paywall) {
+        // Store UI owns the transaction; access still comes from server verification below.
+        await (gateway as RevenueCatStoreGateway).presentPaywall(user);
+        _assertUser(user, generation);
+      }
       if (purchaseId != null) {
         if (!currentOfferings.any((o) => o.id == purchaseId)) { throw const SubscriptionFailure('OFFERING_CHANGED', 'The offering changed. Review current store prices before buying.'); }
         await gateway.purchase(user, purchaseId); _assertUser(user, generation);

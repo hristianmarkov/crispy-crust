@@ -8,10 +8,13 @@ import 'package:path_provider/path_provider.dart';
 import 'data/local_database.dart';
 import 'data/local_store.dart';
 import 'screens/main_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'services_screen.dart';
 import 'platform/local_notifications.dart';
 import 'platform/kitchen_platform.dart';
 import 'platform/companion_snapshot.dart';
+import 'platform/app_analytics.dart';
+import 'data/app_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,9 +35,12 @@ class CrispyCrustApp extends StatefulWidget {
   @override State<CrispyCrustApp> createState()=>_CrispyCrustAppState();
 }
 class _CrispyCrustAppState extends State<CrispyCrustApp> with WidgetsBindingObserver {
+  static const welcomeCompleted = 'welcomeCompleted';
+  late final bool newLibrary = !widget.store.hasLocalRecords;
   final gateway=LocalNotificationGateway();
   final kitchen=KitchenPlatform();
   final navigator=GlobalKey<NavigatorState>();
+  late final analytics = AppAnalytics(() => widget.store.preference(analyticsConsentKey, false) == true);
   Timer? debounce;
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);widget.store.addListener(changed);
     kitchen.listenForCompanionActions((action)async{
@@ -56,9 +62,16 @@ class _CrispyCrustAppState extends State<CrispyCrustApp> with WidgetsBindingObse
       final record=widget.store.find(id);if(record==null)return;
       if(record.kind=='bake')navigator.currentState?.push(MaterialPageRoute(builder:(_)=>BakeDetail(store:widget.store,id:id)));
       if(record.kind=='starter')navigator.currentState?.push(MaterialPageRoute(builder:(_)=>StarterDetail(store:widget.store,id:id)));
+      if(record.kind=='timer' && record.text('state')=='running') {
+        navigator.currentState?.push(MaterialPageRoute(
+          builder: (_) => TimerCentreScreen(store: widget.store),
+        ));
+      }
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
   void changed(){
+    unawaited(analytics.updateConsent());
     debounce?.cancel();
     debounce=Timer(const Duration(milliseconds:300),()async{
       if(widget.store.preference('nativeReminders',false)==true) {
@@ -80,19 +93,83 @@ class _CrispyCrustAppState extends State<CrispyCrustApp> with WidgetsBindingObse
   @override Widget build(BuildContext context)=>ListenableBuilder(listenable:widget.store,builder:(context,_)=>MaterialApp(
     title:'Crispy Crust',navigatorKey:navigator,debugShowCheckedModeBanner:false,
     theme:buildTheme(false),darkTheme:buildTheme(true),themeMode:widget.store.darkMode?ThemeMode.dark:ThemeMode.light,
-    home:MainScreen(store:widget.store,servicesBuilder:(context)=>ServicesScreen(store:widget.store))));
+    home:newLibrary && widget.store.preference(welcomeCompleted, false) != true
+      ? WelcomeScreen(onContinue: () => widget.store.setPreference(welcomeCompleted, true))
+      : MainScreen(
+      store: widget.store,
+      onTabSelected: (tab) => unawaited(analytics.tabOpened(tab)),
+      servicesBuilder: (context) => ServicesScreen(store: widget.store, analytics: analytics),
+    )));
 }
 ThemeData buildTheme(bool dark) {
-  final scheme=ColorScheme.fromSeed(seedColor:const Color(0xff465538),brightness:dark?Brightness.dark:Brightness.light).copyWith(
-    primary:Color(dark?0xffc3d2a6:0xff465538),onPrimary:Color(dark?0xff1e2b15:0xfffffffb),
-    surface:Color(dark?0xff1c241a:0xfffffffb),onSurface:Color(dark?0xfff3f2e8:0xff263024),
-    onSurfaceVariant:Color(dark?0xffbfc7b4:0xff5b6354),outline:Color(dark?0xff849076:0xff7a806f),error:Color(dark?0xffffb4ab:0xffa52f2f));
-  return ThemeData(useMaterial3:true,colorScheme:scheme,fontFamily:'DM Sans',
-    scaffoldBackgroundColor:Color(dark?0xff121810:0xfff8f7f0),
-    visualDensity:VisualDensity.standard,
-    appBarTheme:const AppBarTheme(centerTitle:false),
-    inputDecorationTheme:InputDecorationTheme(border:OutlineInputBorder(borderRadius:BorderRadius.circular(12)),contentPadding:const EdgeInsets.all(16)),
-    filledButtonTheme:FilledButtonThemeData(style:FilledButton.styleFrom(minimumSize:const Size(48,56),padding:const EdgeInsets.symmetric(horizontal:20,vertical:16),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)))),
-    outlinedButtonTheme:OutlinedButtonThemeData(style:OutlinedButton.styleFrom(minimumSize:const Size(48,48),padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)))),
-    textTheme:const TextTheme(bodyLarge:TextStyle(fontSize:16,height:1.5),bodyMedium:TextStyle(fontSize:16,height:1.5),titleLarge:TextStyle(fontSize:24,fontWeight:FontWeight.w600),titleMedium:TextStyle(fontSize:20,fontWeight:FontWeight.w600),headlineSmall:TextStyle(fontSize:26,fontWeight:FontWeight.w600)));
+  final canvas = Color(dark ? 0xff161b13 : 0xfff6f3eb);
+  final scheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xff465538),
+    brightness: dark ? Brightness.dark : Brightness.light,
+  ).copyWith(
+    primary: Color(dark ? 0xffc3d2a6 : 0xff38452e),
+    onPrimary: Color(dark ? 0xff202918 : 0xfffff9ed),
+    surface: Color(dark ? 0xff22291e : 0xfffffcf5),
+    onSurface: Color(dark ? 0xfff2efe4 : 0xff262b22),
+    onSurfaceVariant: Color(dark ? 0xffc0c7b4 : 0xff555e50),
+    secondaryContainer: Color(dark ? 0xff343e2a : 0xffe3e8d7),
+    onSecondaryContainer: Color(dark ? 0xffe7efd8 : 0xff2a3823),
+    outline: Color(dark ? 0xff849076 : 0xff737b6b),
+    outlineVariant: Color(dark ? 0xff495144 : 0xffd8d8ca),
+    error: Color(dark ? 0xffffb4ab : 0xffa52f2f),
+  );
+  const serif = 'DM Serif Display';
+  final buttonShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
+  final fieldBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: scheme.outline),
+  );
+  return ThemeData(
+    colorScheme: scheme,
+    fontFamily: 'DM Sans',
+    scaffoldBackgroundColor: canvas,
+    appBarTheme: AppBarTheme(
+      backgroundColor: canvas, foregroundColor: scheme.onSurface,
+      elevation: 0, scrolledUnderElevation: 0, centerTitle: false,
+      titleTextStyle: TextStyle(color: scheme.onSurface, fontFamily: serif, fontSize: 23),
+    ),
+    cardTheme: CardThemeData(
+      color: scheme.surface, elevation: 0, surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: scheme.outlineVariant)),
+    ),
+    dividerTheme: DividerThemeData(color: scheme.outlineVariant),
+    expansionTileTheme: const ExpansionTileThemeData(
+      shape: RoundedRectangleBorder(),
+      collapsedShape: RoundedRectangleBorder(),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: scheme.surface,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: scheme.secondaryContainer,
+      height: 72,
+      labelTextStyle: const WidgetStatePropertyAll(TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true, fillColor: scheme.surface, border: fieldBorder,
+      enabledBorder: fieldBorder, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+    ),
+    filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(
+      minimumSize: const Size(48, 48), shape: buttonShape,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    )),
+    outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
+      minimumSize: const Size(48, 48), shape: buttonShape,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    )),
+    textTheme: const TextTheme(
+      displaySmall: TextStyle(fontFamily: serif, fontSize: 43, height: 1.04),
+      headlineMedium: TextStyle(fontFamily: serif, fontSize: 34, height: 1.12),
+      headlineSmall: TextStyle(fontFamily: serif, fontSize: 28, height: 1.12),
+      titleLarge: TextStyle(fontFamily: serif, fontSize: 23, height: 1.16),
+      titleMedium: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, height: 1.3),
+      bodyLarge: TextStyle(fontSize: 16, height: 1.5),
+      bodyMedium: TextStyle(fontSize: 15, height: 1.45),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+    ),
+  );
 }

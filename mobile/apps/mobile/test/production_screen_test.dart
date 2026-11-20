@@ -36,7 +36,7 @@ class ProductionTestStore extends AppStore {
  @override Future<void> resetLocalData()async{data.clear();notifyListeners();}
  @override Future<String> exportArchive()async=>'{}';
  @override Future<void> importArchive(String source)async{}
- @override Future<AppRecord> createBake(Map<String,dynamic> recipe,{double scale=1,DateTime? serveAt,DateTime? startAt,Map<String,dynamic>? expectedSchedule})=>throw UnimplementedError();
+ @override Future<AppRecord> createBake(Map<String,dynamic> recipe,{double scale=1,DateTime? serveAt,DateTime? startAt,Map<String,dynamic>? expectedSchedule, bool beginImmediately = false, BakeSetup setup = const BakeSetup()})=>throw UnimplementedError();
  @override Future<void> completeStep(String bakeId,{DateTime? occurredAt,int? expectedIndex})=>throw UnimplementedError();
  @override Future<void> logFeed(String starterId,{required double seed,required double flour,required double water,DateTime? occurredAt})=>throw UnimplementedError();
 }

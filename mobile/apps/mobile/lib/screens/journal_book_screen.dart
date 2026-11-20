@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'kitchen_design.dart';
 import 'package:baking_domain/baking_domain.dart';
 import '../data/app_store.dart';
 import '../platform/local_media.dart';
@@ -25,7 +26,8 @@ class _JournalBookScreenState extends State<JournalBookScreen> {
   Future<void> generate()async{if(busy)return;setState(()=>busy=true);try{final current=entries();final built=await exporter.build(current,title:title.text.trim(),includeNotes:notes,includeTimes:times,includePhotos:photos).timeout(const Duration(seconds:45));if(mounted)setState((){result=built;message='Prepared locally: ${built.pages} pages, ${built.includedPhotos} selected photos. ${built.warnings.isEmpty?'Review before sharing.':built.warnings.join(' ')}';});}catch(e){if(mounted)setState(()=>message='PDF was not prepared: $e. Your selection and source records are unchanged.');}finally{if(mounted)setState(()=>busy=false);}}
   Future<void> output(bool print)async{final current=result;if(current==null||busy)return;setState(()=>busy=true);try{final accepted=print?await exporter.printBook(current):await exporter.shareBook(current);if(mounted)setState(()=>message=accepted?'The system ${print?'print':'share'} flow accepted the document. This does not prove a physical print or recipient delivery.':'The system ${print?'print':'share'} flow was cancelled or unavailable. Your PDF selection is retained.');}catch(e){if(mounted)setState(()=>message='System output was not completed: $e. No source records were changed.');}finally{if(mounted)setState(()=>busy=false);}}
   @override void dispose(){title.dispose();super.dispose();}
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('My recipe book')),body:SafeArea(child:ListView(key:const ValueKey('recipe-book-scroll'),padding:const EdgeInsets.all(20),children:[
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('My recipe book')),body:SafeArea(child:KitchenPage(scrollKey:const ValueKey('recipe-book-scroll'),children:[
+    const KitchenHeading('Make a recipe book', detail: 'Choose the bakes, notes and photos you want in your PDF.'),
     Semantics(liveRegion:true,child:Text(message)),if(busy)const LinearProgressIndicator(),const SizedBox(height:16),
     TextField(controller:title,maxLength:160,decoration:const InputDecoration(labelText:'Book title'),onChanged:(_)=>change((){})),
     const Text('A PDF is a selected human-readable copy, not a full backup. The structured JSON archive remains available in Data & privacy. PDF times are shown in UTC with dates to avoid timezone ambiguity.'),
@@ -77,7 +79,7 @@ class _JournalInsightsScreenState extends State<JournalInsightsScreen> {
     final baseline=bakes.where((b)=>b.id==baselineId).firstOrNull,other=bakes.where((b)=>b.id==otherId).firstOrNull;
     final a=baseline==null?null:measurements(baseline),b=other==null?null:measurements(other);
     final comparison=a!=null&&b!=null&&a.bakeId!=b.bakeId?const BakeComparator().compare(a,b,intendedVariables:intended):null;
-    return Scaffold(appBar:AppBar(title:const Text('Journal comparisons')),body:ListView(padding:const EdgeInsets.all(20),children:[
+    return Scaffold(appBar:AppBar(title:const Text('Journal comparisons')),body:KitchenPage(children:[
       Text(message),if(bakes.length<2)const Text('Complete at least two bakes to compare recorded results.'),
       for(final first in [true,false])Padding(padding:const EdgeInsets.symmetric(vertical:8),child:DropdownButtonFormField<String>(isExpanded:true,initialValue:first?baselineId:otherId,decoration:InputDecoration(labelText:first?'Baseline bake':'Comparison bake'),items:bakes.map((b)=>DropdownMenuItem(value:b.id,child:Text(b.text('name'),overflow:TextOverflow.ellipsis))).toList(),onChanged:(v)=>setState((){if(first){baselineId=v;}else{otherId=v;}}))),
       if(a!=null&&b!=null&&a.bakeId==b.bakeId)const Text('Choose two different bakes; one bake is not a two-sample comparison.'),

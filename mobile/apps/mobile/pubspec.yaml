@@ -1,5 +1,5 @@
 name: crispy_crust
-version: 0.1.0+1
+version: 0.1.0+6
 publish_to: none
 description: A private, offline-capable sourdough baking companion.
 environment:
@@ -21,6 +21,8 @@ dependencies:
   timezone: 0.11.2
   flutter_secure_storage: 11.2.0
   supabase_flutter: 2.18.3
+  google_sign_in: 7.2.0
+  sign_in_with_apple: 8.2.0
   flutter_tts: 4.2.5
   flutter_reactive_ble: 5.6.0
   permission_handler: 13.0.2
@@ -32,7 +34,9 @@ dependencies:
   pdf: 3.13.1
   printing: 5.15.1
   purchases_flutter: 11.0.1
+  purchases_ui_flutter: 11.0.1
   url_launcher: 6.3.3
+  posthog_flutter: 5.60.3
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -43,6 +47,10 @@ flutter:
   assets:
     - assets/catalogue.json
     - assets/brand/mark-olive.svg
+    - assets/brand/welcome-loaf.webp
+    - assets/brand/google-sign-in-light.png
+    - assets/brand/google-sign-in-dark.png
+    - assets/editorial/
   fonts:
     - family: DM Sans
       fonts:
@@ -56,5 +64,5 @@ flutter_launcher_icons:
   ios: true
   image_path: assets/brand/app-icon.png
   remove_alpha_ios: true
-  adaptive_icon_background: '#465538'
+  adaptive_icon_background: '#353f2b'
   adaptive_icon_foreground: assets/brand/app-icon.png

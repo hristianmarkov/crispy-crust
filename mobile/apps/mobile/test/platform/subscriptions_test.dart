@@ -43,6 +43,16 @@ class FakeVerifier implements SubscriptionVerifier {
 }
 
 void main() {
+  test('Test Store key takes priority only on supported mobile platforms', () {
+    const configuration = SubscriptionConfiguration(
+      iosKey: 'appl_production_example',
+      androidKey: 'goog_production_example',
+      testStoreKey: 'test_sandbox_example',
+    );
+    expect(configuration.keyFor(TargetPlatform.iOS), 'test_sandbox_example');
+    expect(configuration.keyFor(TargetPlatform.android), 'test_sandbox_example');
+    expect(configuration.keyFor(TargetPlatform.windows), isNull);
+  });
   const configured = SubscriptionConfiguration(androidKey: 'goog_public_sdk_fixture');
   test('anonymous/local-only mode never configures or purchases from the store', () async {
     final store = FakeStore(); final verifier = FakeVerifier();

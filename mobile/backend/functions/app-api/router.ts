@@ -134,6 +134,8 @@ export function createRouter(config: RouterConfig) {
         new URL(req.url).pathname.replace(/^.*\/app-api(?:\/v1)?/, "") || "/";
       const url = new URL(req.url);
       if (req.method === "GET") {
+        if (path === "/coach/usage")
+          return response(await config.backend.rpc("cc_coach_usage", {}, token));
         const mediaRead = path.match(/^\/media\/([^/]+)\/download$/);
         if (mediaRead) {
           if (!config.media)

@@ -4,8 +4,10 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:baking_domain/baking_domain.dart';
 import 'package:flutter/material.dart';
+import 'kitchen_design.dart';
 import 'package:uuid/uuid.dart';
 import '../data/app_store.dart';
+import '../data/starter_routine.dart';
 import '../platform/export_share.dart';
 import '../platform/local_media.dart';
 
@@ -78,7 +80,12 @@ StarterEvidence analyseStarterEvidence(AppStore store,String starterId,{DateTime
 Future<void> setStarterCareMode(AppStore store,String starterId,String mode) async {
   if(!{'counter','fridge','travel','paused','revival'}.contains(mode))throw ArgumentError('Unknown care mode');
   final starter=store.find(starterId);if(starter==null||starter.kind!='starter')throw StateError('Starter not found');
-  await store.save('starter',{...starter.fields,'storage':mode},id:starterId);
+  final routine = StarterRoutine.read(starter);
+  await store.save('starter',{
+    ...starter.fields,'storage':mode,
+    if (routine != null && StarterRoutine.isAway(mode))
+      'feedRoutine': StarterRoutine(routine.hours, routine.anchor, paused: true, configuredAt: routine.configuredAt).toJson(),
+  },id:starterId);
   if(mode=='paused'||mode=='travel') {
     for(final timer in store.records('timer').where((t)=>t.text('starterId')==starterId&&t.text('state')=='running').toList()) {
       await store.save('timer',{...timer.fields,'state':'canceled','canceledReason':'Jar care $mode','canceledAt':DateTime.now().toUtc().toIso8601String()},id:timer.id);
@@ -132,9 +139,8 @@ class _StarterInsightsScreenState extends State<StarterInsightsScreen> {
     final current=observations.where((o)=>o.text('feedId')==evidence.currentFeed?.id&&_number(o.fields['height'])!=null).toList();
     final window=evidence.estimate?.checkWindow;
     final latest=evidence.lastObservationAt;
-    return Scaffold(appBar:AppBar(title:Text('${starter.text('name')} · insights')),body:ListView(padding:const EdgeInsets.all(20),children:[
-      Text('Recorded evidence, not a health score',style:Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height:12),const Text('A time estimate does not establish readiness or food safety. Unknown peaks stay unknown. No cloud analysis is used here.'),
+    return Scaffold(appBar:AppBar(title:Text('${starter.text('name')} · insights')),body:KitchenPage(children:[
+      const KitchenHeading('Rise and feeding history', detail: 'Review the observations you recorded. Check the jar in person for readiness and safety.'),
       if(busy)const LinearProgressIndicator(),if(message.isNotEmpty)Semantics(liveRegion:true,child:card([Text(message)])),
       card([Text('Next check',style:Theme.of(context).textTheme.titleLarge),const SizedBox(height:8),
         if(window!=null)...[Text('${_stamp(window.start)} – ${_stamp(window.end)}',style:Theme.of(context).textTheme.titleMedium),if(window.end.isBefore(DateTime.now().toUtc()))const Text('This empirical window has passed. It is not a live measurement; check the jar and record what you find.')],
@@ -221,7 +227,7 @@ class _StarterObservationFormState extends State<_StarterObservationForm> {
   }
   @override Widget build(BuildContext context) {
     final feeds=widget.store.records('feed').where((f)=>f.text('starterId')==widget.starterId).toList();
-    return Scaffold(appBar:AppBar(title:const Text('Link an actual starter observation')),body:Form(key:form,child:ListView(padding:const EdgeInsets.all(20),children:[
+    return Scaffold(appBar:AppBar(title:const Text('Link an actual starter observation')),body:Form(key:form,child:KitchenPage(children:[
       const Text('Link a measured feed explicitly. Current jar defaults below are suggestions to verify, not historical facts.'),const SizedBox(height:16),
       DropdownButtonFormField<String>(initialValue:feedId,isExpanded:true,itemHeight:null,decoration:const InputDecoration(labelText:'Actual feed'),items:[const DropdownMenuItem(value:null,child:Text('No feed link / unknown')),for(final f in feeds)DropdownMenuItem(value:f.id,child:Text('${_stamp(_time(f.fields['occurredAt']))} · ${f.text('seed')}:${f.text('flour')}:${f.text('water')} g'))],onChanged:busy?null:(value)=>setState((){feedId=value;contextConfirmed=false;peakConfirmed=false;})),
       const SizedBox(height:16),field(at,'Actual observation date/time (ISO, local offset accepted)'),
@@ -262,7 +268,7 @@ class _PhotoSequenceScreenState extends State<_PhotoSequenceScreen> {
   @override void dispose(){playback?.cancel();super.dispose();}
   @override Widget build(BuildContext context)=>AnimatedBuilder(animation:widget.store,builder:(context,_) {
     final entries=frames;final current=entries.isEmpty?null:entries[frame%entries.length];
-    return Scaffold(appBar:AppBar(title:const Text('Private starter photo sequence')),body:ListView(padding:const EdgeInsets.all(20),children:[
+    return Scaffold(appBar:AppBar(title:const Text('Private starter photo sequence')),body:KitchenPage(children:[
       const Text('Use the same marked, straight-sided container, camera distance, angle and visible scale. Keep the phone away from heat and water. This is explicit capture and replay, not unattended monitoring or image measurement.'),
       CheckboxListTile(contentPadding:EdgeInsets.zero,value:aligned,onChanged:busy?null:(v)=>setState(()=>aligned=v??false),title:const Text('I have checked alignment and the visible reference mark')),
       Wrap(spacing:8,runSpacing:8,children:[OutlinedButton(onPressed:busy||!aligned?null:()=>capture(true),child:const Text('Capture one aligned frame')),OutlinedButton(onPressed:busy||!aligned?null:()=>capture(false),child:const Text('Select one recorded frame'))]),

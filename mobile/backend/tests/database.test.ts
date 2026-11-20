@@ -54,6 +54,7 @@ before(async () => {
       "utf8",
     ),
   );
+  await db.exec(await readFile(new URL("../sql/coach_allowances.sql", import.meta.url), "utf8"));
   ka = (await rpc(A, "cc_bootstrap", ["Alice"])).result.kitchen_id;
   kb = (await rpc(B, "cc_bootstrap", ["Bob"])).result.kitchen_id;
   await rpc(C, "cc_bootstrap", ["Carol"]);
@@ -774,6 +775,26 @@ test("billing receipts deduplicate, reject hash changes and ignore stale snapsho
     /permission denied/,
   );
 });
+test("coach allowance is account-wide, replay-safe and requires an unexpired verified entitlement", async () => {
+  const D="55555555-5555-4555-8555-555555555555";
+  await admin("insert into auth.users(id) values($1)",[D]);
+  await rpc(D,"cc_bootstrap",["Dara"]);
+  await rpc(D, "cc_grant_consent", ["coach", "1", true]);
+  const input = JSON.stringify({consent_version:"1",question:"How does my dough look?"});
+  for (let n=800; n<803; n++) await rpc(D,"cc_enqueue_job",[id(n),"coach",input,null]);
+  assert.equal((await rpc(D,"cc_coach_usage")).result.remaining,0);
+  await rpc(D,"cc_enqueue_job",[id(800),"coach",input,null]);
+  await assert.rejects(rpc(D,"cc_enqueue_job",[id(803),"coach",input,null]),/COACH_MONTHLY_LIMIT/);
+  await admin("insert into cc_entitlements(user_id,entitlement_key,state,provider,valid_until) values($1,'crispy_crust_pro','active','revenuecat',now()+interval '1 month')",[D]);
+  assert.equal((await rpc(D,"cc_coach_usage")).result.limit,60);
+  await rpc(D,"cc_enqueue_job",[id(803),"coach",input,null]);
+  await admin("update cc_entitlements set valid_until=now()-interval '1 second' where user_id=$1",[D]);
+  assert.equal((await rpc(D,"cc_coach_usage")).result.limit,3);
+  await admin("update cc_entitlements set valid_until=now()+interval '1 month', provider='fake' where user_id=$1",[D]);
+  assert.equal((await rpc(D,"cc_coach_usage")).result.limit,3);
+  assert.equal((await rpc(B,"cc_coach_usage")).result.used,0);
+});
+
 test("media and billing migration matches source", async () => {
   const { readdir } = await import("node:fs/promises");
   const name = (

@@ -1,4 +1,137 @@
-# Implementation status — 11 November 2026
+# Implementation status — updated 20 November 2026
+
+## Running release checklist
+
+### Current launch checkpoint · 18 November 2026
+
+The authoritative running list is [Launch status](../docs/mobile-app/LAUNCH_STATUS.md), with [premium decisions](../docs/mobile-app/PREMIUM_DECISIONS.md). New signed builds and uploads were authorized by the owner on 20 November. Older dated entries below are historical checkpoints.
+
+- **Completed:** published RevenueCat paywall; Flutter RevenueCatUI integration; account-wide free 3/Pro 60 monthly coach limits and 20/day cap; deployed quota/API/webhook; authenticated signed sandbox webhook; Google scoped billing access/APIs/topic; core UI store assets; live support/privacy/terms/deletion pages; Apple age rating; Google privacy/no ads/government/financial/health declarations and category/support contact; Apple privacy published.
+- **Billing left:** Google catalogue-write validation blocker (purchase credentials now show valid), Android monthly/annual plans and RevenueCat mappings, reviewed regional prices, owner purchase/restore/notification acceptance, then production cutover. Final UK prices remain GBP 2.99/29.99; both final UK prices are verified in the approved preview; the RevenueCat plan has a Google credential blocker and is not applied.
+- **Stores left:** Apple content rights (privacy disclosures are published), remaining Google content/access/Data safety/trader declarations, reviewer contact/access, native paywall review captures and applicable country filings. Nothing submitted for public review.
+- **Google access gate:** closed test with 12 opted-in testers for 14 days; current count 0. Internal testing is insufficient.
+- **Owner tasks:** SMTP, native sign-in, device and connected-service acceptance. Build 5 predates current local work. Signed iOS archive/fresh Android release are now authorized and pending preparation.
+- **Recipe evidence:** corrected ingredients, methods, cues, proof/preheat scheduling and gradual cooling/recovery. All 30 recipes remain experimental, none kitchen validated. Generated images are references.
+- **Checks:** 140 Flutter tests, 58 backend tests plus typecheck, 11 content tests and website production build passed. No new mobile Supabase advisor findings. Device/provider/kitchen acceptance remains separate.
+
+### Reviewer follow-up · 20 November 2026
+
+- Verified hello@leymora.com is a confirmed Supabase user with a password set by the owner. Standard password sign-in is in source. RevenueCat still needs the account's first native app sign-in before a customer record and Pro grant can be completed; the attempted grant returned not found and did not change access.
+- Deployed server support for trusted promotional grants across sandbox/production, retaining ordinary purchase environment checks and expiry validation. `app-api` v9 and `revenuecat-webhook` v7 are ACTIVE. All 58 backend tests and typecheck pass.
+- RevenueCat Android purchase credentials now show valid. The refreshed product plan still blocks catalogue writes, although Play's app-scoped Manage store presence is saved and checked. No broader permissions were added and no price plan applied. Signed builds were authorized later on 20 November.
+
+### Apple app and subscription setup · 18 November 2026
+
+- Created **Crispy Crust Baking** in App Store Connect, app ID `6836109226`, using `app.crispycrust.mobile`. The owner chose the store name after the original name was unavailable.
+- Connected and validated both dedicated Apple billing keys in RevenueCat. Created monthly and annual products in subscription group `22590229`, attached both to `crispy_crust_pro`, and mapped them into the existing default offering's monthly/annual packages.
+- The owner approved the reviewed price plan. It applied successfully. Live Apple reads confirm GBP 2.99/month, GBP 29.99/year, and 175 priced/available countries for both products. They are ready to submit with the first app version. Blank review screenshots still need genuine iOS screenshots.
+- Configured app availability for all 175 countries on release, confirmed Free download pricing, and saved the approved subtitle and Food & Drink category. After the owner completed RevenueCat password verification, the RevenueCat notification URL was saved for both Apple production and sandbox events.
+- Saved the owner-approved [researched App Store listing](../docs/mobile-app/APP_STORE_LISTING.md), including the 3,554-character description, 145-character promotional text, 96-character keyword field and subtitle **Sourdough & Bread Planner**. Exact version-copy values matched after reload. Both monthly and annual Pro products are saved at Apple service level 1 and were verified after reload. The SEO plugin provides Google keyword estimates. Actual App Store keyword demand and organic conversion remain unmeasured.
+- Apple Business confirms active Free and Paid Apps agreements. Signed iOS build, listing/privacy/age-rating information, real screenshots, TestFlight purchases/restores, server-side RevenueCat verification and webhook setup remain outstanding. See [owner setup](OWNER_SETUP.md#apple-setup-checkpoint--18-november-2026) for identifiers and the current handoff.
+
+### Follow-up to the Samsung feedback
+
+- Bottom action bars use equal columns with a gap. A single action spans the available width. Starter list cards open the jar without a separate feed action. Jar settings contain storage, reminders, weight corrections and deletion.
+- Feed records start with all measured starter retained. Editing retained or removed weight updates the other. A planned bake can link a starter jar. Completing the step that uses the starter records its use and updates known stock when the recorded amount is sufficient.
+- Recipe lists and the Overview tab share estimated skill, overall time and hands-on time. All 30 descriptions explain what the bake produces. Recipe detail has swipeable Overview, Ingredients and Step by step tabs.
+- Bake setup keeps multiple editable away windows on the individual bake, shows kitchen temperature and starter selection, and makes shopping-list additions optional. Review rows open each step's details. Adjusted options flag a fridge hold or a later start or finish. The cooling model uses a slow centre-cooling curve and the published [temperature and fermentation guidance](https://thesourdoughjourney.com/faq-bulk-fermentation-timing/). These timings are estimates. The planner still requires hands-on tasks to fit free time.
+- Bake Mode has swipeable steps, bottom arrows, a photo count and an estimate of time remaining. Completing the current step records progress and starts the next timed wait when required. Swiping through a step leaves that timer tied to the actual next task. Photos can be added throughout a bake.
+- Help opens the signed-in baking coach. The question preview shows the recipe name and viewed step included in the request. A live AI response depends on the [server configuration](OWNER_SETUP.md#optional-cloud-services).
+- Local verification covers the linked feed weights, starter stock, optional shopping, later schedule candidates, review detail and guided countdowns. All 136 Flutter and 11 catalogue tests passed. Play Console shows `0.1.0 (5) - Guided Bake Mode` as **Available to internal testers** on 17 November 2026. Update through the [existing Android tester link](https://play.google.com/apps/internaltest/4700415689322704031). Installation and provider tests on the Samsung remain to be verified.
+
+### Samsung feedback update · build 4
+
+- Removed duplicate display headings from the main tabs. Pin primary actions above the navigation or safe area. The timeline uses a separate colour for starter care and lists the next action for each open bake, plus timers and starter feeds due today.
+- Added feed and hydration calculators, a temperature-based rise forecast, four quick timers, and recipe-linked shopping shortages. Shopping items use the confirmed scale and recorded pantry stock. The Features menu now links to Guides and omits the production, device and discard inventory screens.
+- Added Rosemary sourdough, Olive sourdough, Sun-dried tomato sourdough, Rosemary and sea salt focaccia, Black olive focaccia, and Sun-dried tomato and oregano focaccia. Updated dough cues throughout the catalogue. All 30 catalogue entries have individual generated finished-dish images. The ten starter jar mascots and recipe images are bundled in [the editorial assets folder](apps/mobile/assets/editorial). Generated references are illustrations. Photograph the cooked recipes during kitchen trials.
+- **Image generation prompts.** Used the built-in image tool. Recipe sheets asked for six independent, natural-light cookbook photos of the named finished dishes with distinct toppings and visible crumb. The transparent starter sheet asked for the same illustrated bubbly jar in ten variants, using different lids, bands and accessories. The app bundles the individual cropped WebP images.
+- Starter cards use relative feeding times and show overdue jars in the error colour. Starter detail includes jar tare, starter weight, hydration and age with an editable birthday, feed history, a photo gallery and an optional photo in place of the mascot. Journal accepts a photo on an existing or manual entry and prompts for one at bake completion.
+- The local planner can add fridge-in, fridge-out and warm-up tasks for a bounded early bulk hold after folds in selected lean doughs. It checks busy windows and equipment and requires schedule confirmation. Replanning keeps recorded completions. Rise forecasts interpolate the [Sourdough Journey reference windows](https://thesourdoughjourney.com/wp-content/uploads/2024/01/The-The-SECRET-of-Bulk-Fermentation-Measuring-Dough-Temperature-and-Percentage-Rise.pdf) for lean country dough followed by a cold final proof. The app's temperature adjustment and fridge hold are planning estimates pending kitchen trials. Cold dough still ferments. Use recipe-specific visual and tactile cues and observed dough temperature.
+- Google Cloud now has a separate Android OAuth client for the Play signing certificate and the Samsung tester is listed in the testing audience. The native Flutter SDK sends the existing Web client ID as its server audience. The Supabase dashboard retained the existing clients after attempts to append the new Android ID. Physical sign-in, timeline accessibility, gallery access and time-away behaviour still need a Samsung acceptance pass.
+- **Verification.** All 134 Flutter tests and 11 content-model tests passed. The manifest includes Android version code 4. The Android App Bundle signature matches the existing Play upload certificate.
+- **Google Play.** Play Console shows `0.1.0 (4) - Timeline and starter care` as **Available to internal testers**. Update through the [existing Android tester link](https://play.google.com/apps/internaltest/4700415689322704031).
+
+### Kitchen workflow redesign · build 3
+
+- **Home** opens in the centre of Starters, Recipes, Home, Features and Journal. Start a bake opens the recipe picker. The most urgent bake has a Continue action. Today's list orders bake steps, timers and feed reminders by deadline.
+- **Starters** shows where each jar is kept, its last feed and its next reminder. Log feed reuses the last recorded amounts for review. Each jar can have a confirmed reminder interval and first due time. A new recorded feed resets the reminder. Travel and Paused suspend the recurrence until you explicitly resume it. One-off checks keep their own dates.
+- **Recipes and guided baking** use illustrated Bread, Focaccia, Pizza, Sweets and Discard filters. Choose Start now or schedule by mix or serving time, review the schedule, then follow one step at a time. Availability and equipment are under Advanced options. Recipe timing remains experimental.
+- **Journal and Features** put finished bakes, photos, notes and Bake again in one place. Kitchen tools, account and connected services, and optional journal tools are available from their own headings. Crumb appears in welcome and empty states.
+- **Verification.** All 131 Flutter tests passed. Captures cover all five tabs, a recipe detail, Home with an active bake and Home at 200% text in dark mode. The signed Android App Bundle uses package `app.crispycrust.mobile`, version `0.1.0+3` and the existing Play upload certificate. Each legacy location permission is present once and capped at Android API 30.
+- **Google Play.** `0.1.0 (3) - Kitchen redesign` was published to the existing internal testing track. Play Console shows **Available to internal testers**. Existing testers can update through the [original tester link](https://play.google.com/apps/internaltest/4700415689322704031).
+- **Samsung acceptance pending.** Update an existing install through the same internal test link. Check that existing jars and bakes remain available, run one start-to-journal flow and verify a feed reminder on the device. TalkBack and live provider checks are still outstanding.
+
+### Google Play internal test · 16 November 2026
+
+- The account holder created the Crispy Crust Play Console app as a free app with package `app.crispycrust.mobile` and English (United Kingdom) as the default language.
+- Built Android release `0.1.0+2` at `mobile/apps/mobile/build/app/outputs/bundle/release/app-release.aab` and verified its signature against the dedicated Crispy Crust upload certificate. The keystore and its Windows-account-encrypted password are stored under `%LOCALAPPDATA%\CrispyCrust\AndroidSigning`.
+- Play rejected build 1 because the app manifest and the Bluetooth library declared location permissions with different Android version limits. The native configuration now suppresses the library duplicates and retains one declaration per location permission for Android 11 and earlier.
+- Play Console made `0.1.0 (2) - First internal test` available to the dedicated one-person list through the [tester opt-in link](https://play.google.com/apps/internaltest/4700415689322704031). The tester confirmed build 2 installed on the Samsung after the initial Play Store error.
+
+### Before the next beta build
+
+- [x] **PostHog configuration.** Confirmed access to Crispy Crust project [739160](https://us.posthog.com/project/739160/home) and saved its public token and US ingestion host in the Git-ignored local build configuration, `mobile/config/.env.release.json`.
+- [x] **Welcome and account entry · Flutter source.** New installs offer **Continue locally** alongside account options. The screen saves the choice locally. Existing libraries open directly to Home, and returning users can sign in under **Features → Connected services**. Added Google's approved artwork and the Apple-branded control for the platform's sign-in method. Live provider acceptance remains below.
+- [ ] **Visual polish and content.** Redesigned the shared light and dark theme, navigation, welcome, Today, Plan, Recipes, Starters, Journal, bake progress and the account and subscription screens. Added a scored-loaf mark and editorial illustrations for bread styles and starter care. Remaining work includes photography from tested recipes, technique captions, and physical-device TalkBack and VoiceOver checks.
+- [ ] **RevenueCat sandbox and store setup.** Verified the existing [Test Store catalogue](https://app.revenuecat.com/projects/91f95079/product-catalog/products) with Monthly and Yearly products, entitlement `crispy_crust_pro`, and offering `default` with two packages. The debug Flutter configuration accepts the public Test Store key. Set the sandbox environment and entitlement allowlist in Supabase. Connect the App Store and Play apps, add the server key and webhook credentials, and test catalogue prices and the purchase lifecycle on devices. [RevenueCat setup](OWNER_SETUP.md#revenuecat-and-store-products)
+- [ ] **Upgrade screen.** Flutter shows store price and period, purchase review, restore, subscription management and a route back to baking. The [RevenueCat paywall draft](https://app.revenuecat.com/projects/91f95079/paywalls/wf7bf6de880e8f4bbe/builder) is saved and unpublished. Confirm subscription benefits, policy URLs and its offering before publishing. Verify purchase, restore, expiry, cancellation and account switching.
+
+### Sign-in and service verification
+
+- [ ] **Android Google · device check.** The debug Android OAuth client and public Web Client ID are in place and Supabase Google is enabled. Test account selection, cancellation, sign-out and returning to the same app account on a Google Play-enabled Android device. Register the Play app-signing SHA-1 before the Play test build.
+- [ ] **iOS Google and Apple.** Registered the Google iOS client for `app.crispycrust.mobile` and added its public ID to the build config and Supabase Google allowlist. Registered the Apple App ID and enabled native Sign in with Apple in Apple Developer and Supabase. The Apple Account Holder must review the updated agreement in App Store Connect. Generate the callback scheme and provisioning profile and test on a signed iPhone. Apple OAuth browser sign-in for Android remains disabled pending its Services ID and signed secret. [Native sign-in setup](OWNER_SETUP.md#native-google-and-apple-sign-in)
+- [ ] **Email codes · dashboard setup.** The Supabase mobile callback is already allowlisted. Supabase requires custom SMTP before its email templates can be edited. Check the GoDaddy mail product. Use Professional Email/Titan SMTP credentials if available, or configure a transactional sender if GoDaddy only hosts the domain or the mailbox is Microsoft 365. Set the OTP templates and verify receipt, resend, expired code handling and successful sign-in. [Email and SMTP setup](OWNER_SETUP.md#supabase-auth-and-email)
+- [ ] **PostHog event delivery · device check.** Use the configured build file for the next APK and iOS build. Verify app events stay off before opt-in and after opt-out, then enable analytics and confirm `mobile_tab_opened` in project 739160 Live Events. Review retention and store privacy disclosures.
+- [ ] **OpenAI coach and imports · provider setup and app work.** Set `OPENAI_API_KEY` and `COACH_MODEL` in Supabase Edge Functions, then enable coach jobs when ready to test. Configure the URL host allowlist and import flag for supported sites. Verify signed-in consent, requests, results and failures. Photo OCR and reviewed technique content are still open. [Cloud service setup](OWNER_SETUP.md#optional-cloud-services)
+
+### Full release acceptance
+
+- [ ] **Signed-in data flows · app work and tests.** Finish physical-record conflict reconciliation, household handoffs and in-progress bake recovery. Run two-device backup, restore, conflict and account deletion tests with test accounts. Verify that local baking works offline throughout.
+- [ ] **Store and device release · owner access and app work.** Prepare signed builds for TestFlight and Google Play internal testing. Validate notifications, app links, Apple Watch/Wear OS behaviour, accessibility and production-sized bake flows on devices. Finish the privacy and support pages, account deletion route, store disclosures and listings before submission. [Store and release setup](OWNER_SETUP.md#apple-android-and-companion-identities)
+
+## Mobile redesign
+
+- **Interaction references.** Apple Design Award winner [Crouton](https://developer.apple.com/design/awards/2024/) keeps the next recipe instruction and ingredients easy to find. [Tide Guide](https://developer.apple.com/design/awards/) uses type and placement to clarify dense timing information. In Crispy Crust, the planner groups start and finish choices, the review numbers the actual method steps, and the bake screen puts the current step before the full method.
+- **Competitors.** [Yeasta](https://apps.apple.com/us/app/yeasta-sourdough-tracker/id6748180011) leads with the next starter or bake action. [Rise](https://bakewithrise.com/) keeps instructions and timers within a bake. [Breadly](https://apps.apple.com/us/app/breadly-sourdough-scheduler/id1521410011) gives progress and crumb photos a place in the schedule and bake record. Crispy Crust puts due checks and active bakes first and gives the recipe catalogue a separate photo-led browse view.
+- **Brand and content.** The olive and warm-cream palette is paired with DM Serif Display, DM Sans and a new scored-loaf icon. The [alternate monogram](../docs/mobile-app/brand-assets/crispy-crust-monogram-concept.png) is available for review. Recipe previews use illustrative baking-style imagery. Actual bake records and observations continue to show the user's own recorded data and pictures.
+- **Verification.** The Flutter suite passed all 129 tests. The visual test renders the welcome screen, all five tabs, a recipe detail, Today with an active bake and timer, and Today in dark mode at 200% text. The redesigned Android debug APK installed and reached the foreground on the QA emulator. Physical-device screen-reader checks remain open.
+
+## App and provider checkpoint
+
+- **First run and sign-in:** The welcome and returning account screens share the email-code and platform sign-in controls. Sign-in is separate from enabling library sync. The generated loaf and starter image is welcome artwork. The recipe catalogue still needs photography from actual tested bakes.
+- **Subscriptions:** The RevenueCat dashboard currently has Test Store only. The generated paywall draft still needs an offering association and verified policy URLs. Flutter uses its own purchase screen with the signed-in Supabase user and server entitlement check. The Supabase webhook function is deployed. The RevenueCat project has no webhook configured yet.
+- **Analytics:** Added the PostHog Flutter SDK with an opt-in under Data & privacy. Manual events cover app open, tab changes, Connected services and subscriptions. Session replay, surveys, automatic lifecycle capture and person profiles are disabled. The Android debug APK builds with the configuration for project 739160. Ingestion and the signed iOS build remain to be verified.
+- **Connections and acceptance:** Supabase allows the Google Web, Android and iOS clients and native Apple iOS sign-in. Live sign-in, SMTP, OpenAI, store billing and signed-in sync and deletion still require end-to-end verification.
+- **Local verification:** 129 Flutter tests passed and the Android debug APK built. The application installed and launched on a clean Android QA emulator. Emulator desktop approval timed out before interactive sign-in and analytics checks. The iOS store and signed-device checks remain open.
+
+## Native sign-in — 15 November 2026
+
+- Updated Account mode in the build plan to require native Google on Android and iOS and native Apple on iOS. Apple users on Android retain a clearly labelled browser option for account access across platforms.
+- The app now exchanges native provider ID tokens with Supabase. Apple sign-in sends a fresh hashed nonce to Apple and the original nonce to Supabase. The generated iOS runner declares the Apple entitlement and derives the Google callback scheme from its build configuration.
+- Flutter analysis passed with informational lints and all 126 app tests passed. The Android debug APK built, and the phone and Wear APK IDs and debug certificates matched. An isolated iOS bootstrap check confirmed Google callback scheme generation. Signed iOS and live provider sign-in are still unverified.
+- Android development setup has a Google Android OAuth client and the public Web Client ID in the build configuration. Supabase's public Auth settings confirm that Google is enabled.
+- Outstanding: completing Google iOS registration and production Android signing registration, Apple provider setup and provisioning, and real-device verification of native sign-in, cancellation, account switching, and Apple account continuity across platforms. See [native credential setup](OWNER_SETUP.md#native-google-and-apple-sign-in).
+
+## Local continuation — 13 November 2026
+
+Hosted setup check on 15 November 2026 found email Auth enabled and Google and Apple Auth disabled. The app API, job worker and RevenueCat webhook were active. The check did not establish custom SMTP delivery, OAuth credentials or webhook authentication. See [GoDaddy and Google setup](OWNER_SETUP.md#godaddy-smtp-and-the-google-android-client-form).
+
+- Added Today pins, a timer centre with snooze and routine starter quiet hours, and resumable starter and loaf courses.
+- Added mixing-time selection and schedule comparison. Acceptance rechecks the selected schedule against current availability and equipment.
+- Added measured stock corrections and withdrawals for jars, pantry and discard lots. Starter withdrawals can link to a bake. The local stock update and its audit event commit together.
+- Completed the text and URL import result path into the private recipe editor. Imported drafts retain attribution and require weights and method timing before planning. Coach results show observations, possible explanations, next checks and uncertainty.
+- Production can use schedulable private recipes and price runs in GBP, EUR, USD, CAD, AUD, CHF or JPY.
+- Local Flutter analysis passed with informational lints. All 125 app tests passed. The preceding local checkpoint passed 55 backend, 50 domain and 11 catalogue tests.
+- Local Android phone and Wear OS debug APKs built and passed application ID and signing certificate verification. The verifier now accepts Build Tools 37 signer labels. The phone APK was installed on the Android emulator and the Today screen was verified after restarting the app.
+- A local Chrome preview at `http://127.0.0.1:8765/` mirrors the running Android emulator and forwards taps and swipes. The preview needs the local emulator and preview server to remain running.
+
+Still open for the full specification are kitchen and editorial validation, device and store acceptance, signed-in service testing, and feature work such as photo OCR, physical sync conflict reconciliation, in-progress recovery and household handoffs. The [owner setup](OWNER_SETUP.md#credentials-at-a-glance) lists provider credentials.
+
+### Direct Flutter Web support
+
+The current app bootstrap generates Android, iOS and Linux runners. A direct Chrome build would need a Flutter web runner, a browser-compatible Drift database with persistent storage, and browser implementations or capability gates for native file, media and export code. The browser would also need its own handling for sign-in redirects, notifications and subscriptions. Watch integration and other native device features would remain available through the mobile builds. Direct browser execution is unimplemented and unverified. The original build plan scopes the public website to marketing.
+
+Update this ledger with each implementation pass. Record what shipped in source, what was verified locally or in CI, and what still needs work or real-device acceptance.
 
 The single full-launch scope in the [build specification](../docs/mobile-app/CRISPY_CRUST_BUILD_PLAN.md) remains unchanged. This ledger separates implemented source, observed checks and remaining work. Source code and synthetic tests do not establish kitchen, device, security, operational or store acceptance. The app is not ready to launch.
 

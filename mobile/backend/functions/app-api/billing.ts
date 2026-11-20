@@ -95,9 +95,14 @@ export class RevenueCatService implements BillingService {
           ? subscriptions?.[e.product_identifier]
           : undefined;
       const sandbox = product?.is_sandbox;
-      if (this.config.environment === "PRODUCTION" && sandbox !== false)
+      // RevenueCat grants work in both environments but are always reported as
+      // production promotional subscriptions. Trust only the server response,
+      // with both its documented product prefix and store marker.
+      const promotional = sandbox === false && product?.store === "promotional" &&
+        typeof e.product_identifier === "string" && e.product_identifier.startsWith("rc_promo_");
+      if (!promotional && this.config.environment === "PRODUCTION" && sandbox !== false)
         return [];
-      if (this.config.environment === "SANDBOX" && sandbox !== true) return [];
+      if (!promotional && this.config.environment === "SANDBOX" && sandbox !== true) return [];
       const until =
         e.expires_date === null
           ? null
@@ -106,11 +111,15 @@ export class RevenueCatService implements BillingService {
             : NaN;
       if (until !== null && !Number.isFinite(until))
         throw new ApiError("STORE_RESPONSE_INVALID", 502);
+      const graceValue = e.grace_period_expires_date ?? product?.grace_period_expires_date;
+      const graceUntil = typeof graceValue === "string" ? Date.parse(graceValue) : NaN;
+      const inGrace = until !== null && until <= verifiedMs &&
+        Number.isFinite(graceUntil) && graceUntil > verifiedMs;
       return [
         {
           key,
-          state: until === null || until > verifiedMs ? "active" : "expired",
-          valid_until: until === null ? null : new Date(until).toISOString(),
+          state: inGrace ? "grace" : until === null || until > verifiedMs ? "active" : "expired",
+          valid_until: inGrace ? new Date(graceUntil).toISOString() : until === null ? null : new Date(until).toISOString(),
         },
       ];
     });

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:crispy_crust/data/app_store.dart';
 import 'package:crispy_crust/data/local_database.dart';
 import 'package:crispy_crust/data/local_store.dart';
 
@@ -18,6 +19,22 @@ void main(){
     await expectLater(store.logFeed(starter.id,seed:200,flour:40,water:40),throwsFormatException);
     expect(store.records('feed'),hasLength(1));
   });
+  test('measured stock changes keep audit history and reject stale withdrawals', () async {
+    final starter = await store.save('starter', {'name': 'Jar', 'mass': 220});
+    final bake = await store.save('bake', {'name': 'Loaf'});
+    await store.reconcileStock(starter.id, expectedRevision: starter.revision,
+      grams: 200, reason: 'Mixed into dough', withdrawal: true, bakeId: bake.id);
+    expect(store.find(starter.id)!.number('mass'), 20);
+    final change = store.records('correction').single;
+    expect(change.number('beforeGrams'), 220);
+    expect(change.text('bakeId'), bake.id);
+    await expectLater(store.reconcileStock(starter.id, expectedRevision: starter.revision,
+      grams: 15, reason: 'Stale edit'), throwsStateError);
+    expect(store.records('correction'), hasLength(1));
+    await expectLater(store.logFeed(starter.id, seed: 20, flour: 40, water: 40,
+      occurredAt: DateTime.now().subtract(const Duration(hours: 1))), throwsStateError);
+    expect(store.find(starter.id)!.number('mass'), 20);
+  });
   test('simultaneous stale completion never advances twice',()async{
     final bake=await store.createBake(recipe());
     await Future.wait([store.completeStep(bake.id,expectedIndex:0),store.completeStep(bake.id,expectedIndex:0)]);
@@ -29,9 +46,13 @@ void main(){
   });
   test('archive restores records, audit history and preferences',()async{
     await store.setPreference('darkMode',true);
+    await store.setPreference(analyticsConsentKey, true);
     await store.save('starter',{'name':'Original','hydration':100});
-    final archive=await store.exportArchive();
-    await store.resetLocalData();await store.importArchive(archive);
+    final archive=jsonDecode(await store.exportArchive()) as Map;
+    expect(archive['preferences'], isNot(contains(analyticsConsentKey)));
+    (archive['preferences'] as Map)[analyticsConsentKey] = true;
+    await store.resetLocalData();await store.importArchive(jsonEncode(archive));
+    expect(store.preference(analyticsConsentKey, false), isFalse);
     expect(store.darkMode,isTrue);expect(store.records('starter').single.text('name'),'Original');
     final result=jsonDecode(await store.exportArchive()) as Map;
     expect((result['events'] as List).length,greaterThanOrEqualTo(2));

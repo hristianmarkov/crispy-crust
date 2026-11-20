@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'kitchen_design.dart';
 import '../data/local_store.dart';
 import '../data/sync_client.dart';
 import '../platform/export_share.dart';
@@ -27,7 +28,7 @@ class _SyncConflictsScreenState extends State<SyncConflictsScreen> {
     if(yes!=true||!mounted)return;
     await run(()async{final resolved=await widget.sync.useReviewedServer(current,confirmed:true,keepLocalCopy:copy);await widget.store.load();conflicts=await widget.sync.listConflicts();review=null;return 'Reviewed server projection applied; pending operations were archived, not silently retried. ${resolved.privateCopyId==null?'Original local events remain exportable.':'Private conflict copy retained as ${resolved.privateCopyId}.'}';});
   }
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Resolve sync conflicts')),body:SafeArea(child:ListView(padding:const EdgeInsets.all(20),children:[
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Resolve sync conflicts')),body:SafeArea(child:KitchenPage(children:[
     Semantics(liveRegion:true,child:Text(status)),if(busy)const LinearProgressIndicator(),
     const SizedBox(height:12),const Text('Physical feeds, step completions, inventory, changed actual history and event-only remote updates require manual reconciliation. A tombstone is never resurrected. Unsafe local-wins overwrites are not offered.'),
     OutlinedButton(onPressed:busy?null:()=>run(()async{conflicts=await widget.sync.listConflicts();return '${conflicts.length} unresolved records loaded.';}),child:const Text('Refresh conflict list')),

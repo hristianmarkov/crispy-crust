@@ -98,6 +98,7 @@ runner_entitlements = File.join(ios, 'Runner/CrispyRunner.entitlements')
 widget_entitlements = File.join(widget_dir, 'CrispyWidgets.entitlements')
 existing = File.exist?(runner_entitlements) ? Xcodeproj::Plist.read_from_path(runner_entitlements) : {}
 existing['com.apple.security.application-groups'] = [group_identifier]
+existing['com.apple.developer.applesignin'] = ['Default']
 plist(runner_entitlements, existing)
 plist(widget_entitlements, {'com.apple.security.application-groups' => [group_identifier]})
 runner.build_configurations.each { |config| config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'Runner/CrispyRunner.entitlements' }

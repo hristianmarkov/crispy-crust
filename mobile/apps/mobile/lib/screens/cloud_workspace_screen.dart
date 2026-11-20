@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'kitchen_design.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../data/app_store.dart';
 import '../data/local_store.dart';
+import 'cloud_job_result.dart';
+import 'private_recipe_editor.dart';
 
 /// Transport is injectable so cloud UX can be tested without credentials.
 abstract interface class CloudWorkspaceApi {
@@ -102,7 +106,8 @@ class _CloudWorkspaceScreenState extends State<CloudWorkspaceScreen> {
   Widget action(String label, Future<String> Function() action) => Padding(padding: const EdgeInsets.only(bottom: 8), child: OutlinedButton(onPressed: busy ? null : () => run(action), child: Text(label)));
   Widget section(String title) => Padding(padding: const EdgeInsets.only(top: 24, bottom: 12), child: Text(title, style: Theme.of(context).textTheme.titleLarge));
   Widget panel(List<Widget> children) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)));
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Cloud kitchen')), body: SafeArea(child: ListView(padding: const EdgeInsets.all(20), children: [
+  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Cloud kitchen')), body: SafeArea(child: KitchenPage(children: [
+    const KitchenHeading('Shared workspace', detail: 'Manage kitchens, review cloud requests or explore community posts.'),
     Semantics(liveRegion: true, child: Text(status)), if (networkRequests > 0) const LinearProgressIndicator(), const SizedBox(height: 16),
     Wrap(spacing: 8, runSpacing: 8, children: [for(final entry in const {0:'Kitchen',1:'Help & jobs',2:'Community'}.entries) ChoiceChip(label:Text(entry.value),selected:tab==entry.key,onSelected:busy?null:(_)=>setState(()=>tab=entry.key))]),
     if (tab == 0) ...kitchenViews(), if (tab == 1) ...helpViews(), if (tab == 2) ...communityViews(),
@@ -146,11 +151,34 @@ class _CloudWorkspaceScreenState extends State<CloudWorkspaceScreen> {
     action('Import an approved HTTPS recipe URL',()async{final f=await form('URL import',{'url':'HTTPS recipe URL'});if(f==null)return 'Import cancelled.';if(!await confirm('Ask the server to fetch this public recipe?',f['url']!))return 'No URL submitted.';await post('/consents',{'purpose':'import','version':'1','granted':true});final result=await post('/imports',{'source':{'kind':'url','url':f['url']},'consent_version':'1'});trackJob(result);return 'URL import queued; unsupported hosts and extraction errors are reported by the job.';}),
     section('Your request jobs'),
     const Text('Refresh is explicit and bounded; the app does not poll indefinitely. Queued is not complete. Copy a job ID if you need support.'),
-    for(final id in jobs)panel([SelectableText('Job $id'),action('Refresh this job once',()async{final result=await request('/jobs/${Uri.encodeComponent(id)}');if(mounted)await showResult('Actual job status and result',result);return 'Job refreshed. Only a server result marked complete is complete.';})]),
-    action('Look up a request job',()async{final f=await form('Job status',{'id':'Job ID'});if(f==null)return 'No job requested.';final result=await request('/jobs/${Uri.encodeComponent(f['id']!)}');if(mounted)await showResult('Actual job status',result);if(!jobs.contains(f['id']))jobs.add(f['id']!);return 'Job status loaded.';}),
+    for(final id in jobs)panel([SelectableText('Job $id'),action('Refresh this job once', () => openJob(id))]),
+    action('Look up a request job',()async{final f=await form('Job status',{'id':'Job ID'});if(f==null)return 'No job requested.';return openJob(f['id']!);}),
     action('Revoke future coach processing consent',()async{await post('/consents',{'purpose':'coach','version':'1','granted':false});return 'Future coach consent revoked. Previously processed requests require their separate retention/deletion policy.';}),
   ];
   void trackJob(dynamic result){if(result is Map){final id=result['job_id']??result['id'];if(id!=null&&!jobs.contains('$id'))jobs.add('$id');}}
+  Future<String> openJob(String id) async {
+    final data = await request('/jobs/${Uri.encodeComponent(id)}');
+    final job = rows(data).where((job) => job['id'] == id).firstOrNull;
+    if (job == null || !mounted) return 'This request is unavailable for your account.';
+    if (!jobs.contains(id)) jobs.add(id);
+    if (job['kind'] == 'export') {
+      await showResult('Account export status and data', data);
+    } else {
+      await Navigator.of(context).push<void>(MaterialPageRoute(
+        builder: (_) => CloudJobResultScreen(job: job, reviewImport: reviewImport),
+      ));
+    }
+    return 'Request status refreshed.';
+  }
+
+  Future<void> reviewImport(BuildContext context, Map<String, dynamic> draft) async {
+    final saved = await Navigator.of(context).push<AppRecord>(MaterialPageRoute(
+      builder: (_) => PrivateRecipeEditor(store: widget.store, original: draft),
+    ));
+    if (saved != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved to your private recipes.')));
+    }
+  }
   List<Widget> communityViews()=>[
     section('Opt-in community'),
     const Text('Nothing from your journal is automatically posted. A selected share must be created first; public posts and comments remain pending until moderation.'),

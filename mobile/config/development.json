@@ -1,4 +1,6 @@
 {
   "SUPABASE_URL": "https://wpxeuwknbuxbtkkkmcsm.supabase.co",
-  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_wB2Tswo0eVqNwF-1WlvgWQ_gpdo3RaL"
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_wB2Tswo0eVqNwF-1WlvgWQ_gpdo3RaL",
+  "GOOGLE_WEB_CLIENT_ID": "781369922375-codn2os2deocknb1q201p53v5s860gsg.apps.googleusercontent.com",
+  "GOOGLE_IOS_CLIENT_ID": "781369922375-0ejpib0a7pm74741raqf02fkmpadgua4.apps.googleusercontent.com"
 }

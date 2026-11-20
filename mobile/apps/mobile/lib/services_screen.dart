@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'screens/account_sign_in.dart';
+import 'screens/kitchen_design.dart';
 import 'data/local_store.dart';
+import 'data/starter_routine.dart';
 import 'data/sync_client.dart';
 import 'screens/cloud_workspace_screen.dart';
 import 'screens/probe_screen.dart';
@@ -11,16 +14,18 @@ import 'platform/local_notifications.dart';
 import 'platform/reminders.dart';
 import 'platform/kitchen_platform.dart';
 import 'platform/export_share.dart';
+import 'platform/app_analytics.dart';
+import 'screens/app_policy_links.dart';
 
 class ServicesScreen extends StatefulWidget {
-  const ServicesScreen({super.key,required this.store});
+  const ServicesScreen({super.key,required this.store,this.analytics});
   final LocalAppStore store;
+  final AppAnalytics? analytics;
   @override State<ServicesScreen> createState()=>_ServicesScreenState();
 }
 class _ServicesScreenState extends State<ServicesScreen> {
-  static final cloud=CloudSessionService();
+  static final cloud=CloudSessionService.shared;
   static const configuration=CloudConfiguration.fromEnvironment();
-  final email=TextEditingController(),code=TextEditingController();
   final notifications=LocalNotificationGateway();
   final kitchen=KitchenPlatform();
   CloudSyncClient? sync;
@@ -39,12 +44,43 @@ class _ServicesScreenState extends State<ServicesScreen> {
     if(authSubscription!=null)return;
     authSubscription=cloud.authChanges?.listen((_) {if(mounted)setState((){});});
   }
-  @override void initState(){super.initState();watchAuth();}
-  @override void dispose(){unawaited(authSubscription?.cancel());email.dispose();code.dispose();unawaited(kitchen.stopSpeaking());unawaited(kitchen.setKeepAwake(false));super.dispose();}
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Connected services')),body:SafeArea(child:ListView(padding:const EdgeInsets.all(20),children:[
-    Text('You choose what connects',style:Theme.of(context).textTheme.headlineSmall),
-    const SizedBox(height:12),const Text('An account does not automatically upload your library. Reminders, calendars and cloud requests are separate choices.'),
-    const SizedBox(height:20),Semantics(liveRegion:true,child:Text(message)),if(busy)const LinearProgressIndicator(),
+  Future<void> restoreSession() async {
+    try {
+      if (!configuration.isConfigured) return;
+      await cloud.connect(configuration);
+      if (!mounted) return;
+      watchAuth();
+      if (cloud.signedIn) setState(() {});
+    } catch (_) {
+      // The sign-in controls let the user retry a failed cloud connection.
+    }
+  }
+  @override void initState(){super.initState();unawaited(restoreSession());unawaited(widget.analytics?.connectedServicesOpened());}
+  @override void dispose(){unawaited(authSubscription?.cancel());unawaited(kitchen.stopSpeaking());unawaited(kitchen.setKeepAwake(false));super.dispose();}
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Connected services')),body:SafeArea(child:KitchenPage(children:[
+    const AppPolicyLinks(),
+    const KitchenHeading('Cloud account', detail: 'Sign in to join shared kitchens. You can turn on library backup separately.'),
+    Semantics(liveRegion:true,child:Text(message)),if(busy)const LinearProgressIndicator(),
+    const SizedBox(height:12),
+    if (!cloud.signedIn)
+      AccountSignIn(
+        cloud: cloud,
+        onSignedIn: () {
+          watchAuth();
+          setState(() => message = 'Signed in. You can choose whether to sync your library below.');
+        },
+      ),
+    if(cloud.signedIn)...[
+      FilledButton(onPressed:busy?null:()=>Navigator.of(context).push(MaterialPageRoute(builder:(context)=>CloudWorkspaceScreen(store:widget.store,client:cloud.client!,apiBase:Uri.parse('${configuration.url}/functions/v1/app-api/v1')))),child:const Text('Open shared kitchens, community and coach')),
+      FilledButton(onPressed:busy?null:()async{
+        final accepted=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Upload this local library?'),content:Text('This will upload your saved starters, recipes, bakes, journal, observations and other supported records to your personal cloud kitchen. ${widget.store.records('bake').length} bakes and ${widget.store.records('starter').length} starters are currently saved. Cloud storage is not end-to-end encrypted. Individual photos are not uploaded by this text sync. Continue?'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Keep local')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Enable library sync'))]));
+        if(accepted==true)await run(()async{final account=await syncClient.bootstrapAccount();await syncClient.enable(kitchenId:account['kitchen_id'] as String,userOptIn:true,uploadExistingRecords:true);final result=await syncClient.syncOnce();await widget.store.load();return 'Uploaded ${result.pushed}; received ${result.pulled}; ${result.conflicts} need review; ${result.skipped} unsupported records remain local.';});
+      },child:const Text('Review and enable library sync')),
+      OutlinedButton(onPressed:busy?null:()=>run(()async{final result=await syncClient.syncOnce();await widget.store.load();return 'Uploaded ${result.pushed}; received ${result.pulled}; ${result.conflicts} conflicts need review.';}),child:const Text('Sync now')),
+      OutlinedButton(onPressed:busy?null:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>SyncConflictsScreen(store:widget.store,sync:syncClient))),child:const Text('Review sync conflicts')),
+      OutlinedButton(onPressed:busy?null:()=>run(()async{await syncClient.disable();return 'Sync disabled. Existing cloud copies remain until you delete them.';}),child:const Text('Disable library sync')),
+      OutlinedButton(onPressed:busy?null:()=>run(()async{await syncClient.disable();await cloud.signOut();return 'Cloud account signed out. Your local library remains on this device.';}),child:const Text('Sign out of cloud services')),
+      ],
     const SizedBox(height:24),Text('Reminders',style:Theme.of(context).textTheme.titleLarge),
     const Text('Enable native alerts for deadlines saved on this device. OS quiet modes and battery settings can delay alerts; a timer is not a safety interlock.'),
     FilledButton(onPressed:busy?null:()=>run(() async {
@@ -73,29 +109,10 @@ class _ServicesScreenState extends State<ServicesScreen> {
       }
       return '$count busy intervals saved. Review them in Plan before accepting a schedule.';
     }),child:const Text('Choose calendar access and import busy times')),
-    const SizedBox(height:24),Text('Cloud account',style:Theme.of(context).textTheme.titleLarge),
-    const Text('Connect an account for shared kitchens and optional backup. Your library stays on this phone until you choose to sync it.'),
-    OutlinedButton(onPressed:busy?null:()=>run(()async{final result=await cloud.connect(const CloudConfiguration.fromEnvironment());watchAuth();return result.message;}),child:const Text('Connect cloud account')),
-    if(cloud.client!=null)...[
-      TextField(controller:email,keyboardType:TextInputType.emailAddress,autofillHints:const [AutofillHints.email],decoration:const InputDecoration(labelText:'Email')),
-      const SizedBox(height:8),OutlinedButton(onPressed:busy?null:()=>run(()async{await cloud.sendEmailCode(email.text);return 'If delivery is available, check your email for the sign-in code.';}),child:const Text('Send sign-in code')),
-      TextField(controller:code,keyboardType:TextInputType.number,autofillHints:const [AutofillHints.oneTimeCode],decoration:const InputDecoration(labelText:'Email code')),
-      FilledButton(onPressed:busy?null:()=>run(()async{await cloud.verifyEmailCode(email.text,code.text);return 'Account connected. Library backup remains off.';}),child:const Text('Verify code')),
-      OutlinedButton(onPressed:busy?null:()=>run(()async{await cloud.signInWithApple();return 'Continue in the secure Apple sign-in window.';}),child:const Text('Sign in with Apple')),
-      OutlinedButton(onPressed:busy?null:()=>run(()async{await cloud.signInWithGoogle();return 'Continue in the secure Google sign-in window.';}),child:const Text('Sign in with Google')),
-      if(cloud.signedIn)...[
-      FilledButton(onPressed:busy?null:()=>Navigator.of(context).push(MaterialPageRoute(builder:(context)=>CloudWorkspaceScreen(store:widget.store,client:cloud.client!,apiBase:Uri.parse('${configuration.url}/functions/v1/app-api/v1')))),child:const Text('Open shared kitchens, community and coach')),
-      FilledButton(onPressed:busy?null:()async{
-        final accepted=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Upload this local library?'),content:Text('This will upload your saved starters, recipes, bakes, journal, observations and other supported records to your personal cloud kitchen. ${widget.store.records('bake').length} bakes and ${widget.store.records('starter').length} starters are currently saved. Cloud storage is not end-to-end encrypted. Individual photos are not uploaded by this text sync. Continue?'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Keep local')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Enable library sync'))]));
-        if(accepted==true)await run(()async{final account=await syncClient.bootstrapAccount();await syncClient.enable(kitchenId:account['kitchen_id'] as String,userOptIn:true,uploadExistingRecords:true);final result=await syncClient.syncOnce();await widget.store.load();return 'Uploaded ${result.pushed}; received ${result.pulled}; ${result.conflicts} need review; ${result.skipped} unsupported records remain local.';});
-      },child:const Text('Review and enable library sync')),
-      OutlinedButton(onPressed:busy?null:()=>run(()async{final result=await syncClient.syncOnce();await widget.store.load();return 'Uploaded ${result.pushed}; received ${result.pulled}; ${result.conflicts} conflicts need review.';}),child:const Text('Sync now')),
-      OutlinedButton(onPressed:busy?null:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>SyncConflictsScreen(store:widget.store,sync:syncClient))),child:const Text('Review sync conflicts')),
-      OutlinedButton(onPressed:busy?null:()=>run(()async{await syncClient.disable();return 'Sync disabled. Existing cloud copies remain until you delete them.';}),child:const Text('Disable library sync')),
-      OutlinedButton(onPressed:busy?null:()=>run(()async{await syncClient.disable();await cloud.signOut();return 'Cloud account signed out. Your local library remains on this device.';}),child:const Text('Sign out of cloud services')),
-      ],
-    ],
-    const SizedBox(height:24),OutlinedButton(onPressed:busy?null:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>SubscriptionScreen(client:cloud.client,apiBase:configuration.isConfigured?Uri.parse('${configuration.url}/functions/v1/app-api/v1'):null))),child:const Text('Subscriptions and restore purchases')),
+    const SizedBox(height:24),OutlinedButton(onPressed:busy?null:(){
+      unawaited(widget.analytics?.subscriptionViewed());
+      Navigator.of(context).push(MaterialPageRoute(builder:(_)=>SubscriptionScreen(client:cloud.client,apiBase:configuration.isConfigured?Uri.parse('${configuration.url}/functions/v1/app-api/v1'):null)));
+    },child:const Text('Subscriptions and restore purchases')),
     const SizedBox(height:24),Text('Read-aloud and kitchen screen',style:Theme.of(context).textTheme.titleLarge),
     OutlinedButton(onPressed:busy?null:()=>run(()async=> (await kitchen.speak('Check the dough. Timing is a guide; record what you observe.')).message),child:const Text('Try spoken guidance')),
     OutlinedButton(onPressed:busy?null:()=>run(()async=> (await kitchen.setKeepAwake(true)).message),child:const Text('Keep this screen awake')),
@@ -108,6 +125,24 @@ class _ServicesScreenState extends State<ServicesScreen> {
   ])));
 }
 Future<ReminderReconciliation> reconcileReminders(LocalAppStore store,LocalNotificationGateway gateway) {
-  final intents=store.records('timer').where((t)=>t.text('state')=='running'&&t.date('dueAt')!=null).map((t)=>ReminderIntent(id:t.id,aggregateId:t.text('bakeId',t.text('starterId',t.id)),revision:t.revision,title:t.text('bakeName','Crispy Crust'),action:t.text('name','Check the bake'),dueAt:t.date('dueAt')!.toUtc(),isCheck:true)).toList();
+  final quiet = store.preference('routineQuietHours');
+  final start = quiet is Map ? quiet['start'] : null;
+  final end = quiet is Map ? quiet['end'] : null;
+  final intents = [
+    for (final jar in store.records('starter'))
+      if (StarterRoutine.read(jar)?.dueAt(jar) case final due?)
+        if (!(start is int && end is int && duringQuietHours(due.toLocal(), start, end)))
+          ReminderIntent(id: 'feed-routine:${jar.id}', aggregateId: jar.id,
+            revision: jar.revision, title: jar.text('name', 'Starter'),
+            action: 'Feed reminder', dueAt: due.toUtc(), isCheck: true),
+    for (final timer in store.records('timer'))
+      if (timer.date('dueAt') case final DateTime due)
+        if (timer.text('state') == 'running' &&
+            !(timer.text('source') == 'user_selected_jar_check' && start is int && end is int &&
+            duringQuietHours(due.toLocal(), start, end)))
+          ReminderIntent(id: timer.id, aggregateId: timer.text('bakeId', timer.text('starterId', timer.id)),
+            revision: timer.revision, title: timer.text('bakeName', 'Crispy Crust'),
+            action: timer.text('name', 'Check the bake'), dueAt: due.toUtc(), isCheck: true),
+  ];
   return ReminderCoordinator(gateway).reconcile(intents,now:DateTime.now().toUtc());
 }

@@ -1,5 +1,6 @@
 import 'package:baking_domain/baking_domain.dart';
 import 'package:flutter/material.dart';
+import 'kitchen_design.dart';
 import 'package:uuid/uuid.dart';
 import '../data/app_store.dart';
 
@@ -20,6 +21,7 @@ Map<String, dynamic> buildPrivateRecipe({
   required List<Map<String, dynamic>> steps,
   required bool runnable,
   Map<String, dynamic>? original,
+  String yieldInput = '1',
 }) {
   if (title.trim().isEmpty) throw const FormatException('Give the recipe a name.');
   if (title.length > 200 || source.length > 4000 || notes.length > 20000 || ingredients.length > 100 || steps.length > 100) throw const FormatException('This recipe exceeds the supported editing limits.');
@@ -29,15 +31,22 @@ Map<String, dynamic> buildPrivateRecipe({
     'status': runnable ? 'user_confirmed' : 'draft',
     'schedulable': runnable, 'experimental': true, 'kitchenValidated': false,
     'requiresExplicitAcceptance': true,
+    'draftYield': yieldInput.trim(),
     if (original?['id'] != null) 'derivedFromRecipeId': original!['id'],
     if (original?['version'] != null) 'derivedFromVersion': original!['version'],
     if (original?['sourceUrls'] != null) 'sourceUrls': original!['sourceUrls'],
     if (original?['author'] != null) 'sourceAuthor': original!['author'],
     if (original?['rights'] != null) 'sourceRights': original!['rights'],
+    if (original?['importJobId'] != null) 'importJobId': original!['importJobId'],
   };
   // Incomplete drafts retain editable inputs, but expose no executable graph.
   if (!runnable) return {...result, 'ingredients': <dynamic>[], 'steps': <dynamic>[],
     'draftIngredients': ingredients, 'draftSteps': steps};
+  final yieldCount = int.tryParse(yieldInput.trim());
+  if (yieldCount == null || yieldCount < 1 || yieldCount > 500) {
+    throw const FormatException('Enter a recipe yield from 1 to 500 pieces.');
+  }
+  result['yieldCount'] = yieldCount;
   if (ingredients.isEmpty) throw const FormatException('Add the physical ingredients.');
   if (steps.isEmpty) throw const FormatException('Add at least one method step.');
   Rational amount(dynamic value, String label) {
@@ -122,9 +131,10 @@ Map<String, dynamic> buildPrivateRecipe({
 }
 
 class PrivateRecipeEditor extends StatefulWidget {
-  const PrivateRecipeEditor({super.key, required this.store, this.original});
+  const PrivateRecipeEditor({super.key, required this.store, this.original, this.editId});
   final AppStore store;
   final Map<String, dynamic>? original;
+  final String? editId;
   @override State<PrivateRecipeEditor> createState() => _PrivateRecipeEditorState();
 }
 
@@ -166,6 +176,9 @@ class _PrivateRecipeEditorState extends State<PrivateRecipeEditor> {
   late final title = TextEditingController(text: '${widget.original?['title'] ?? ''}');
   late final source = TextEditingController(text: '${widget.original?['source'] ?? ''}');
   late final notes = TextEditingController(text: '${widget.original?['notes'] ?? ''}');
+  late final yieldCount = TextEditingController(
+    text: '${widget.original?['yieldCount'] ?? widget.original?['draftYield'] ?? '1'}',
+  );
   final ingredients = <_IngredientInput>[], steps = <_StepInput>[];
   final retiredIngredients = <_IngredientInput>[], retiredSteps = <_StepInput>[];
   bool dirty = false, allowLeave = false, busy = false, confirmed = false;
@@ -177,11 +190,11 @@ class _PrivateRecipeEditorState extends State<PrivateRecipeEditor> {
     for (final row in (original?['draftSteps'] ?? original?['steps'] ?? <dynamic>[]) as List) { steps.add(_StepInput(Map<String, dynamic>.from(row as Map))); }
     if (ingredients.isEmpty) { ingredients.add(_IngredientInput({'name': 'Flour', 'role': 'flour'})); }
     if (steps.isEmpty) { steps.add(_StepInput({})); }
-    for (final c in [title, source, notes, ...ingredients.expand((i) => i.controllers), ...steps.expand((s) => s.controllers)]) { c.addListener(changed); }
+    for (final c in [title, source, notes, yieldCount, ...ingredients.expand((i) => i.controllers), ...steps.expand((s) => s.controllers)]) { c.addListener(changed); }
   }
   void changed() { if (mounted) setState(() { dirty = true; confirmed = false; error = null; }); }
   @override void dispose() {
-    title.dispose(); source.dispose(); notes.dispose();
+    title.dispose(); source.dispose(); notes.dispose(); yieldCount.dispose();
     for (final row in [...ingredients, ...retiredIngredients]) { row.dispose(); }
     for (final row in [...steps, ...retiredSteps]) { row.dispose(); }
     super.dispose();
@@ -192,8 +205,19 @@ class _PrivateRecipeEditorState extends State<PrivateRecipeEditor> {
     try {
       if (runnable && !confirmed) throw const FormatException('Review and confirm your experimental method first.');
       final recipe = buildPrivateRecipe(title: title.text, source: source.text, notes: notes.text,
-        ingredients: ingredients.map((i) => i.toJson()).toList(), steps: steps.map((s) => s.toJson()).toList(), runnable: runnable, original: widget.original);
-      final saved = await widget.store.save('recipe', recipe);
+        ingredients: ingredients.map((i) => i.toJson()).toList(), steps: steps.map((s) => s.toJson()).toList(), runnable: runnable, original: widget.original, yieldInput: yieldCount.text);
+      final id = widget.editId;
+      if (id != null) {
+        final existing = widget.store.find(id);
+        if (existing == null || existing.kind != 'recipe' || existing.fields['schedulable'] != false) {
+          throw StateError('This draft has changed. Reopen it from your recipe library.');
+        }
+        recipe.remove('derivedFromRecipeId');
+        if (existing.fields['derivedFromRecipeId'] != null) {
+          recipe['derivedFromRecipeId'] = existing.fields['derivedFromRecipeId'];
+        }
+      }
+      final saved = await widget.store.save('recipe', recipe, id: id);
       if (mounted) { setState(() => allowLeave = true); Navigator.pop(context, saved); }
     } on Object catch (e) { if (mounted) setState(() => error = '$e'); }
     finally { if (mounted) setState(() => busy = false); }
@@ -208,7 +232,7 @@ class _PrivateRecipeEditorState extends State<PrivateRecipeEditor> {
   Future<void> review() async {
     try {
       final recipe = buildPrivateRecipe(title: title.text, source: source.text, notes: notes.text,
-        ingredients: ingredients.map((i) => i.toJson()).toList(), steps: steps.map((s) => s.toJson()).toList(), runnable: true, original: widget.original);
+        ingredients: ingredients.map((i) => i.toJson()).toList(), steps: steps.map((s) => s.toJson()).toList(), runnable: true, original: widget.original, yieldInput: yieldCount.text);
       await showDialog<void>(context: context, builder: (c) => AlertDialog(title: const Text('Review your formula'), content: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         for (final row in recipe['ingredients'] as List) Text('${row['name']}: ${(row['grams'] as num).toStringAsFixed(2)} g'),
         const SizedBox(height: 12), Text('Physical dough: ${(recipe['doughMassGrams'] as num).toStringAsFixed(2)} g'),
@@ -224,9 +248,10 @@ class _PrivateRecipeEditorState extends State<PrivateRecipeEditor> {
     keyboardType: numeric ? const TextInputType.numberWithOptions(decimal: true) : multiline ? TextInputType.multiline : TextInputType.text));
   Widget panel(List<Widget> children, {Key? key}) => Card(key: key, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)));
   @override Widget build(BuildContext context) => PopScope(canPop: allowLeave || (!dirty && !busy), onPopInvokedWithResult: (didPop, _) => leaving(didPop),
-    child: Scaffold(appBar: AppBar(title: const Text('Your private recipe')), body: SafeArea(child: ListView(key: const ValueKey('private-recipe-scroll'), padding: const EdgeInsets.all(20), children: [
-      const Text('Keep exact weights and a method you can follow. A private variation is a new copy; it never changes an existing bake.'), const SizedBox(height: 16),
+    child: Scaffold(appBar: AppBar(title: const Text('Your private recipe')), body: SafeArea(child: KitchenPage(scrollKey: const ValueKey('private-recipe-scroll'), children: [
+      const KitchenHeading('Formula and method', detail: 'Give the recipe a name, then record the ingredients and steps. Edits apply to this private recipe.'),
       input(title, 'Recipe name'), input(source, 'Source / attribution (optional)'), input(notes, 'Private notes (optional)', multiline: true),
+      input(yieldCount, 'Recipe yield (pieces)', numeric: true),
       Text('Physical ingredients', style: Theme.of(context).textTheme.titleLarge),
       const Text('Enter each physical ingredient once. Starter flour and water are calculated from its hydration. For other ingredients, leave unknown components blank; hydration will stay unknown.'),
       for (var i = 0; i < ingredients.length; i++) ingredientCard(ingredients[i], i),

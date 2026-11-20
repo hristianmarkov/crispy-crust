@@ -250,6 +250,42 @@ test("entitlement refresh reads bound subscriber server-side and writes only ver
     0,
   );
 });
+test("server-verified promotional grants work in both environments without admitting production purchases to sandbox", async () => {
+  const product = "rc_promo_pro_custom";
+  const snapshot = {
+    request_date_ms: now,
+    subscriber: {
+      entitlements: { pro: { product_identifier: product, expires_date: new Date(now + 86400000).toISOString() } },
+      subscriptions: { [product]: { is_sandbox: false, store: "promotional" } },
+    },
+  };
+  const refresh = (environment: "SANDBOX" | "PRODUCTION") => new RevenueCatService({
+    apiKey: "server", environment, entitlementKeys: ["pro"], service: store,
+    fetcher: async () => Response.json(snapshot),
+  }).refresh(U);
+  for (const environment of ["SANDBOX", "PRODUCTION"] as const) {
+    const rows = (await refresh(environment)).entitlements as Json[];
+    assert.equal(rows[0].state, "active");
+  }
+  snapshot.subscriber.entitlements.pro.expires_date = new Date(now - 1000).toISOString();
+  assert.equal(((await refresh("SANDBOX")).entitlements as Json[])[0].state, "expired");
+  snapshot.subscriber.subscriptions[product].store = "play_store";
+  assert.deepEqual((await refresh("SANDBOX")).entitlements, []);
+});
+
+test("verified store grace preserves access only until the grace expiry", async () => {
+  const snapshot = structuredClone(subscriber) as any;
+  snapshot.subscriber.entitlements.pro.expires_date = new Date(now-1000).toISOString();
+  snapshot.subscriber.subscriptions.annual.grace_period_expires_date = new Date(now+86400000).toISOString();
+  const service = new RevenueCatService({apiKey:"server", environment:"PRODUCTION",entitlementKeys:["pro"],service:store,
+    fetcher: async () => Response.json(snapshot)});
+  const row = ((await service.refresh(U)).entitlements as Json[])[0];
+  assert.equal(row.state,"grace");
+  assert.equal(row.valid_until,new Date(now+86400000).toISOString());
+  snapshot.subscriber.subscriptions.annual.grace_period_expires_date = new Date(now-500).toISOString();
+  assert.equal((((await service.refresh(U)).entitlements) as Json[])[0].state,"expired");
+});
+
 test("signed webhook authenticates both headers, ignores sandbox and re-reads current provider state", async () => {
   let reads = 0;
   const config: BillingConfig = {

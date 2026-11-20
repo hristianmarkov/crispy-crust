@@ -1,6 +1,7 @@
 import 'dart:isolate';
 import 'package:baking_domain/baking_domain.dart';
 import 'package:flutter/material.dart';
+import 'kitchen_design.dart';
 import '../data/app_store.dart';
 import '../data/planning_adapter.dart';
 import '../platform/export_share.dart';
@@ -38,13 +39,16 @@ class _ProductionScreenState extends State<ProductionScreen> {
   final capacities=<String,TextEditingController>{},prices=<String,TextEditingController>{};
   final perPieceResources=<String>{'vessel','tin','tray','coolingRack','fridgeSlot','bakingSurface'};
   final lines=<_ProductionLine>[];
+  static const currencyDecimals = {'GBP': 2, 'EUR': 2, 'USD': 2, 'CAD': 2, 'AUD': 2, 'CHF': 2, 'JPY': 0};
+  String currency = 'GBP';
+  int get minorFactor => currencyDecimals[currency] == 0 ? 1 : 100;
   String? selectedRecipe;
   String status='No production plan accepted. Home bakes and production records stay separate.';
   bool experimentalAccepted=false,busy=false;
   ProductionPlanResult? result;
   Map<String,dynamic>? savedRun;
   BatchCost? costPreview;
-  @override void initState(){super.initState();selectedRecipe=widget.store.recipes.firstOrNull?['id']?.toString();final t=widget.clock().toLocal().add(const Duration(days:2));pickupStart.text=_localInput(DateTime(t.year,t.month,t.day,18));pickupEnd.text=_localInput(DateTime(t.year,t.month,t.day,19));}
+  @override void initState(){super.initState();selectedRecipe=_recipes.firstOrNull?['id']?.toString();final t=widget.clock().toLocal().add(const Duration(days:2));pickupStart.text=_localInput(DateTime(t.year,t.month,t.day,18));pickupEnd.text=_localInput(DateTime(t.year,t.month,t.day,19));}
   @override void dispose(){for(final c in [name,count,perLoad,temperature,pickupStart,pickupEnd,reload,warmChange,coolChange,notes,...capacities.values,...prices.values])c.dispose();super.dispose();}
   static String _localInput(DateTime d)=>'${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')} ${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
   static DateTime _parseLocal(String input){
@@ -62,13 +66,20 @@ class _ProductionScreenState extends State<ProductionScreen> {
     finally{if(mounted)setState(()=>busy=false);}
   }
   Widget _heading(String text)=>Padding(padding:const EdgeInsets.only(top:24,bottom:12),child:Text(text,style:Theme.of(context).textTheme.titleLarge));
-  Widget _field(String label,TextEditingController controller,{bool numeric=false,String? key,bool affectsPlan=true})=>Padding(padding:const EdgeInsets.only(bottom:14),child:TextField(key:key==null?null:ValueKey(key),controller:controller,enabled:!busy&&savedRun==null,keyboardType:numeric?const TextInputType.numberWithOptions(decimal:true):null,decoration:InputDecoration(labelText:label),onChanged:(_){if(affectsPlan&&result!=null){setState(_invalidate);}else if(costPreview!=null){setState(()=>costPreview=null);}}));
+  Widget _field(String label,TextEditingController controller,{bool numeric=false,String? key,bool affectsPlan=true,bool price=false})=>Padding(padding:const EdgeInsets.only(bottom:14),child:TextField(key:key==null?null:ValueKey(key),controller:controller,enabled:!busy&&savedRun==null,keyboardType:numeric?const TextInputType.numberWithOptions(decimal:true):null,decoration:InputDecoration(labelText:label),onChanged:(_){if(affectsPlan&&result!=null){setState(_invalidate);}else if(price||costPreview!=null){setState(()=>costPreview=null);}}));
   Widget _panel(List<Widget> children)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:children)));
   List<Map<String,dynamic>> _maps(dynamic value)=>(value is List?value:const []).whereType<Map>().map((m)=>Map<String,dynamic>.from(m)).toList();
-  Map<String,dynamic> _recipe()=>widget.store.recipes.firstWhere((r)=>'${r['id']}'==selectedRecipe);
+  List<Map<String, dynamic>> get _recipes => [
+    ...widget.store.recipes,
+    for (final record in widget.store.records('recipe'))
+      if (record.flag('schedulable') && _maps(record.fields['steps']).isNotEmpty)
+        {...record.fields, 'id': record.id},
+  ];
   Future<void> _addLine() async {
     if(!experimentalAccepted)throw StateError('Acknowledge experimental assumptions before adding quantities.');
-    final recipe=_recipe();final pieces=_integer(count,'Pieces'),load=_integer(perLoad,'Pieces per load',maximum:100);
+    final recipe = _recipes.firstWhere((row) => '${row['id']}' == selectedRecipe,
+      orElse: () => throw StateError('Choose a recipe with a reviewed formula and method.'));
+    final pieces=_integer(count,'Pieces'),load=_integer(perLoad,'Pieces per load',maximum:100);
     final start=_parseLocal(pickupStart.text),end=_parseLocal(pickupEnd.text);
     if(!end.isAfter(start)||!start.isAfter(widget.clock()))throw const FormatException('Choose a future pickup window with end after start.');
     final temp=_number(temperature.text,'Oven set point',positive:true);if(temp>Rational.fromNum(350))throw const FormatException('Oven set point must be 350°C or lower.');
@@ -118,9 +129,19 @@ class _ProductionScreenState extends State<ProductionScreen> {
   }
   List<IngredientPrice> _priceRows(){
     final rows=<IngredientPrice>[];
-    for(final p in prices.entries){if(p.value.text.trim().isEmpty)continue;final price=_number(p.value.text,'${p.key} price');final minor=price*Rational.fromNum(100);if(minor.denominator!=BigInt.one||price>Rational.fromNum(1000000))throw const FormatException('Enter GBP/kg prices with at most two decimal places, no more than 1,000,000. Prices are not silently rounded.');rows.add(IngredientPrice(ingredientId:p.key,currency:'GBP',packageGrams:Rational.fromNum(1000),packageCostMinorUnits:minor.numerator.toInt(),recordedAt:widget.clock().toUtc()));}
+    for (final p in prices.entries) {
+      if (p.value.text.trim().isEmpty) continue;
+      final price = _number(p.value.text, '${p.key} price');
+      final minor = price * Rational.fromNum(minorFactor);
+      if (minor.denominator != BigInt.one || price > Rational.fromNum(1000000)) {
+        throw FormatException('Enter $currency/kg prices up to 1,000,000 with at most ${currencyDecimals[currency]} decimal places.');
+      }
+      rows.add(IngredientPrice(ingredientId: p.key, currency: currency,
+        packageGrams: Rational.fromNum(1000), packageCostMinorUnits: minor.numerator.toInt(), recordedAt: widget.clock().toUtc()));
+    }
     return rows;
   }
+  String _money(Rational minor) => '$currency ${(minor.toDouble() / minorFactor).toStringAsFixed(currencyDecimals[currency]!)}';
   Future<void> _save() async {
     final plan=result;if(plan==null||!plan.feasible)throw StateError('Review a feasible plan first.');
     // Re-run against current local reservations immediately before persistence.
@@ -129,8 +150,8 @@ class _ProductionScreenState extends State<ProductionScreen> {
     final horizon=TimeWindow(widget.clock().toUtc(),widget.clock().toUtc().add(const Duration(days:14)));
     final validation=const PlanningEngine().validate(prior,PlanningRequest(graph:plan.blueprint.graph,anchor:plan.blueprint.readyBy,horizon:horizon,direction:PlanningDirection.backward,resourceCapacities:{for(final e in capacities.entries)e.key:_integer(e.value,'Capacity',minimum:0,maximum:100)},reservations:_existingReservations(),unavailable:[for(final row in widget.store.records('availability'))if(row.date('startAt')!=null&&row.date('endAt')!=null)TimeWindow(row.date('startAt')!.toUtc(),row.date('endAt')!.toUtc())]));
     if(!validation.isValid)throw StateError('Kitchen reservations changed. Generate and review the plan again.');
-    final cost=plan.blueprint.cost(_priceRows(),currency:'GBP');
-    final fields=<String,dynamic>{'name':name.text.trim(),'notes':notes.text.trim(),'status':'planned','state':'planned','experimental':true,'validationStatus':'experimental_user_assumptions','actualYield':null,'createdAt':widget.clock().toUtc().toIso8601String(),'timeDisplay':'Device local time at entry; absolute UTC schedule','deviceOffsetMinutes':widget.clock().timeZoneOffset.inMinutes,'graph':plan.blueprint.graph.toJson(),'schedule':prior.toJson(),'batches':plan.blueprint.packList,'reservations':_reservations(plan),'shopping':plan.blueprint.shoppingDemand.map((k,v)=>MapEntry(k,v.toJson())),'currency':'GBP','knownCostMinorUnits':cost.knownCostMinorUnits.toJson(),'totalCostMinorUnits':cost.totalCostMinorUnits?.toJson(),'missingPrices':cost.missingPrices};
+    final cost=plan.blueprint.cost(_priceRows(),currency:currency);
+    final fields=<String,dynamic>{'name':name.text.trim(),'notes':notes.text.trim(),'status':'planned','state':'planned','experimental':true,'validationStatus':'experimental_user_assumptions','actualYield':null,'createdAt':widget.clock().toUtc().toIso8601String(),'timeDisplay':'Device local time at entry; absolute UTC schedule','deviceOffsetMinutes':widget.clock().timeZoneOffset.inMinutes,'graph':plan.blueprint.graph.toJson(),'schedule':prior.toJson(),'batches':plan.blueprint.packList,'reservations':_reservations(plan),'shopping':plan.blueprint.shoppingDemand.map((k,v)=>MapEntry(k,v.toJson())),'currency':currency,'knownCostMinorUnits':cost.knownCostMinorUnits.toJson(),'totalCostMinorUnits':cost.totalCostMinorUnits?.toJson(),'missingPrices':cost.missingPrices};
     final record=await widget.store.save('production',fields);
     if(mounted)setState((){savedRun={...fields,'id':record.id};status='Saved locally as a separate production run with ${plan.blueprint.batches.length} named loads and resource reservations. Actual packed yield remains unknown.';});
   }
@@ -153,16 +174,16 @@ class _ProductionScreenState extends State<ProductionScreen> {
     ]);
   }
   Future<void> _share() async {final plan=result;if(plan==null||!plan.feasible)throw StateError('Generate a feasible plan first.');final shared=await widget.exporter.shareTextFile(fileName:'crispy-crust-production.csv',content:_csv(plan),mimeType:'text/csv');if(mounted)setState(()=>status=shared.message);}
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Production workspace')),body:SafeArea(child:AnimatedBuilder(animation:widget.store,builder:(context,_)=>ListView(key:const ValueKey('production-scroll'),padding:const EdgeInsets.all(20),children:[
-    const Text('For gifting, events and home production. Separate dough loads, oven reservations and packing notes; no customer orders, payments or compliance certification.'),
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Production workspace')),body:SafeArea(child:AnimatedBuilder(animation:widget.store,builder:(context,_)=>KitchenPage(scrollKey:const ValueKey('production-scroll'),children:[
+    const KitchenHeading('Plan a production run', detail: 'Schedule dough loads, reserve oven time and keep packing notes for gifts or events.'),
     const SizedBox(height:12),Semantics(liveRegion:true,child:Text(status)),if(busy)const LinearProgressIndicator(),
     _heading('Run and product'),_field('Run / event name',name,key:'production-name',affectsPlan:false),
     Text('All entered dates use this device’s local time (${widget.clock().timeZoneName}). Saved times are absolute UTC instants, not a promise of an IANA kitchen timezone. Recheck the plan when travelling or changing time settings.'),
-    if(widget.store.recipes.isEmpty)const Text('Add a recipe with a complete formula and method before planning production.')else DropdownButtonFormField<String>(initialValue:selectedRecipe,isExpanded:true,decoration:const InputDecoration(labelText:'Recipe'),items:[for(final r in widget.store.recipes)DropdownMenuItem(value:'${r['id']}',child:Text('${r['title']}',overflow:TextOverflow.ellipsis))],onChanged:busy?null:(v)=>setState(()=>selectedRecipe=v)),
+    if(_recipes.isEmpty)const Text('Add a recipe with a complete formula and method before planning production.')else DropdownButtonFormField<String>(initialValue:_recipes.any((r) => r['id'] == selectedRecipe) ? selectedRecipe : null,isExpanded:true,decoration:const InputDecoration(labelText:'Recipe'),items:[for(final r in _recipes)DropdownMenuItem(value:'${r['id']}',child:Text('${r['title']}',overflow:TextOverflow.ellipsis))],onChanged:busy?null:(v)=>setState(()=>selectedRecipe=v)),
     _field('Planned pieces',count,numeric:true,key:'production-count'),_field('Assumed maximum pieces per load',perLoad,numeric:true,key:'production-per-load'),
     _field('Assumed oven set point (°C)',temperature,numeric:true),_field('Pickup starts · YYYY-MM-DD HH:mm',pickupStart,key:'production-pickup-start'),_field('Pickup ends · YYYY-MM-DD HH:mm',pickupEnd,key:'production-pickup-end'),
     CheckboxListTile(key:const ValueKey('production-experimental'),value:experimentalAccepted,onChanged:busy?null:(v)=>setState((){experimentalAccepted=v??false;_invalidate();}),contentPadding:EdgeInsets.zero,title:const Text('I understand these are experimental production assumptions'),subtitle:const Text('Current recipe drafts and load sizes are not kitchen-tested. Changing a load count does not validate its temperature, timing or food safety. No adaptive proof hold is approved.')),
-    FilledButton.icon(key:const ValueKey('production-add'),onPressed:busy||!experimentalAccepted||widget.store.recipes.isEmpty?null:()=>_run(_addLine),icon:const Icon(Icons.add),label:const Text('Add this product to the run')),
+    FilledButton.icon(key:const ValueKey('production-add'),onPressed:busy||!experimentalAccepted||!_recipes.any((r) => r['id'] == selectedRecipe)?null:()=>_run(_addLine),icon:const Icon(Icons.add),label:const Text('Add this product to the run')),
     for(final line in lines)_panel([Text('${line.recipe['title']} · ${line.pieces} pieces · up to ${line.perLoad}/load'),Text('Pickup ${_localInput(line.pickupStart)}–${_localInput(line.pickupEnd)} · ${line.ovenC.toDouble()}°C assumed'),TextButton(onPressed:busy?null:()=>setState((){lines.remove(line);_invalidate();}),child:const Text('Remove product'))]),
     if(lines.isNotEmpty)...[
       _heading('Equipment and changeovers'),const Text('Capacities below are assumptions to confirm for this kitchen. Oven loads use one conservative serial queue; additional ovens are not automatically optimised.'),
@@ -172,7 +193,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
       OutlinedButton(key:const ValueKey('production-generate'),onPressed:busy||!experimentalAccepted?null:()=>_run(_plan),child:const Text('Generate and review separate loads')),
     ],
     if(result!=null)..._resultViews(result!),
-    if(savedRun!=null)TextButton(onPressed:busy?null:()=>setState((){lines.clear();name.clear();notes.clear();_invalidate();status='Start another separate run. Previously accepted reservations are still included in conflict checks.';}),child:const Text('Start a new production run')),
+    if(savedRun!=null)TextButton(onPressed:busy?null:()=>setState((){lines.clear();name.clear();notes.clear();for (final price in prices.values) {price.clear();}_invalidate();status='Start another separate run. Previously accepted reservations are still included in conflict checks.';}),child:const Text('Start a new production run')),
     _heading('Saved production runs'),
     for(final run in widget.store.records('production'))_panel([Text(run.text('name'),style:Theme.of(context).textTheme.titleMedium),Text('${_maps(run.fields['batches']).length} separate planned loads · ${run.text('state')}'),Text('Actual packed yield: ${run.text('actualYield','Unknown')}'),if(run.flag('experimental'))const Text('Experimental assumptions — not kitchen-validated.'),TextButton(onPressed:busy?null:()=>_run(()=>_recordYield(run)),child:const Text('Record actual packed quantity')),TextButton(onPressed:busy?null:()=>_run(()async{await widget.store.save('production',{...run.fields,'state':'abandoned','status':'abandoned'},id:run.id);if(mounted)setState(()=>status='Run abandoned; future production reservations released. Historical plan kept.');}),child:const Text('Abandon run and release reservations'))]),
   ]))));
@@ -182,13 +203,21 @@ class _ProductionScreenState extends State<ProductionScreen> {
     if(!plan.feasible)for(final issue in plan.planning.issues)_panel([Text(issue.message),if(issue.stepId!=null)Text('Affected step: ${issue.stepId}'),if(issue.resourceId!=null)Text('Equipment: ${issue.resourceId}')]),
     if(plan.feasible)...[
       for(final batch in plan.blueprint.batches)_panel([Text('${batch.title} · ${batch.id}',style:Theme.of(context).textTheme.titleMedium),Text('${batch.pieces} planned pieces · ${batch.formula.totalDough.toDouble().toStringAsFixed(1)} g dough'),Text('Cool/ready: ${_localInput(plan.planning.candidates.first.task(batch.readyStepId).start.toLocal())}'),Text('Pickup: ${_localInput(batch.pickupWindow.start.toLocal())}–${_localInput(batch.pickupWindow.end.toLocal())}'),for(final task in plan.planning.candidates.first.tasks.where((t)=>t.stepId.startsWith('${batch.id}/')))...[const Divider(),Text('${plan.blueprint.graph.steps.firstWhere((s)=>s.id==task.stepId).title}\n${_localInput(task.start.toLocal())} – ${_localInput(task.end.toLocal())}')]]),
-      _heading('Ingredients and your prices'),const Text('Prices are optional GBP per kilogram, entered by you today. Unknown prices remain unknown; this is not a retailer quote or tax calculation.'),
-      for(final ingredient in plan.blueprint.shoppingDemand.entries)...[Text('${ingredient.key}: ${ingredient.value.toDouble().toStringAsFixed(1)} g'),_field('${ingredient.key} price · GBP/kg (optional)',prices[ingredient.key]!,numeric:true,affectsPlan:false)],
-      OutlinedButton(onPressed:busy?null:()=>_run(()async{final total=plan.blueprint.cost(_priceRows(),currency:'GBP');setState(()=>costPreview=total);}),child:const Text('Calculate ingredient cost from my prices')),
+      _heading('Ingredients and your prices'),
+      DropdownButtonFormField<String>(
+        initialValue: currency,
+        decoration: const InputDecoration(labelText: 'Price currency'),
+        items: [for (final code in currencyDecimals.keys) DropdownMenuItem(value: code, child: Text(code))],
+        onChanged: busy || savedRun != null || prices.values.any((p) => p.text.trim().isNotEmpty) ? null
+          : (value) => setState(() { currency = value ?? currency; costPreview = null; }),
+      ),
+      const Text('Choose the currency before entering prices. Clear all prices to change it.'),
+      for(final ingredient in plan.blueprint.shoppingDemand.entries)...[Text('${ingredient.key}: ${ingredient.value.toDouble().toStringAsFixed(1)} g'),_field('${ingredient.key} price · $currency/kg (optional)',prices[ingredient.key]!,numeric:true,affectsPlan:false,price:true)],
+      OutlinedButton(onPressed:busy?null:()=>_run(()async{final total=plan.blueprint.cost(_priceRows(),currency:currency);setState(()=>costPreview=total);}),child:const Text('Calculate ingredient cost from my prices')),
       if(costPreview!=null)_panel([
-        Text(costPreview!.complete?'Estimated ingredient cost: GBP ${(costPreview!.totalCostMinorUnits!.toDouble()/100).toStringAsFixed(2)}':'Total cost unknown — missing prices: ${costPreview!.missingPrices.join(', ')}'),
-        Text('Known-price subtotal: GBP ${(costPreview!.knownCostMinorUnits.toDouble()/100).toStringAsFixed(2)}. Prices entered by you; displayed amounts rounded to pennies.'),
-        if(costPreview!.perPortionCostMinorUnits!=null)Text('Ingredient cost per planned piece: GBP ${(costPreview!.perPortionCostMinorUnits!.toDouble()/100).toStringAsFixed(2)}'),
+        Text(costPreview!.complete?'Estimated ingredient cost: ${_money(costPreview!.totalCostMinorUnits!)}':'Total cost unknown. Missing prices for ${costPreview!.missingPrices.join(', ')}'),
+        Text('Known-price subtotal: ${_money(costPreview!.knownCostMinorUnits)}'),
+        if(costPreview!.perPortionCostMinorUnits!=null)Text('Ingredient cost per planned piece: ${_money(costPreview!.perPortionCostMinorUnits!)}'),
       ]),
       _field('Private packing / ingredient notes',notes,affectsPlan:false),
       FilledButton(key:const ValueKey('production-save'),onPressed:busy||savedRun!=null?null:()=>_run(_save),child:const Text('Accept and save production reservations')),

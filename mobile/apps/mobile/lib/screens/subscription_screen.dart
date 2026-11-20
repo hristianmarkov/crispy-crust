@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../platform/subscriptions.dart';
+import 'kitchen_design.dart';
+import 'app_policy_links.dart';
 
 class _UnavailableVerifier implements SubscriptionVerifier {
   @override
@@ -69,8 +71,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> purchase(StoreOffering offer) async {
     if (!await confirm('Review store purchase',
       '${offer.title}\n${offer.priceDescription}\n\n${offer.description}\n\n'
-      'This uses the signed-in app account. The App Store or Google Play confirmation shows the final applicable terms. '
-      'No free trial is promised here. You can cancel before approving the store purchase.', 'Continue to store')) { return; }
+      'The store shows the final terms before you confirm. Subscriptions renew unless cancelled in your store account.', 'Continue to store')) { return; }
     await service.purchase(offer.id);
   }
   Future<void> restore() async {
@@ -97,45 +98,39 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   @override Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final busy = service.state == SubscriptionState.loading;
     final signedIn = widget.client?.auth.currentUser != null || service.accountId != null;
     final status = service.verifiedStatus;
     return Scaffold(appBar: AppBar(title: const Text('Subscriptions and purchases')),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
-        Text('Your store account, clearly.', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 12),
-        const Text('Core local baking and your saved records remain available. Opening subscription settings never changes an active bake or starts a purchase.'),
-        const SizedBox(height: 12),
-        const Text('Store services use your app account ID and purchase information. Private bakes, photos and calendar details are not attached. No advertising identifiers are intentionally collected by this integration.'),
-        const SizedBox(height: 20),
-        if (!signedIn) const Text('Sign in through Cloud services before buying or restoring. Purchases are unavailable while signed out; local baking does not require signing in.'),
-        if (widget.client?.auth.currentUser?.email case final String email) Text('App account: $email'),
-        if (busy) const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: LinearProgressIndicator()),
-        Semantics(liveRegion: true, child: Text(service.message)),
-        if (localMessage != null) Text(localMessage!),
+      body: SafeArea(child: KitchenPage(children: [
+        const KitchenHeading('Crispy Crust Pro',
+          detail: 'Starter tracking, bake planning and your journal are available without a subscription.'),
         const SizedBox(height: 16),
-        OutlinedButton.icon(onPressed: busy ? null : service.refresh,
-          icon: const Icon(Icons.refresh), label: const Text('Refresh store and verified service status')),
-        const SizedBox(height: 24),
-        Text('Verified service status', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
-        if (status == null) const Text('Service access has not been verified. Local baking and existing records remain available.'),
-        if (status != null) ...[
-          Text('Server verified ${status.verifiedAt.toLocal()}'),
-          if (status.entitlements.isEmpty) const Text('No service entitlement was returned by the verified provider snapshot.'),
-          for (final entitlement in status.entitlements) ListTile(contentPadding: EdgeInsets.zero,
-            title: Text(entitlement.key), subtitle: Text('${entitlement.state}'
-              '${entitlement.validUntil == null ? '' : ' · until ${entitlement.validUntil!.toLocal()}'}')),
+        const ListTile(leading: Icon(Icons.chat_bubble_outline),
+          title: Text('A little help for your next loaf'),
+          subtitle: Text('Ask about your dough and the recipe step you’re on. Free includes 3 coach questions per calendar month; Pro includes 60. Sign-in and internet required.')),
+        if (service.gateway is RevenueCatStoreGateway)
+          FilledButton(onPressed: busy || !service.canPurchase ? null : service.showPaywall,
+            child: const Text('Explore Crispy Crust Pro')),
+        if (!signedIn) const Text('To buy or restore, sign in under Kitchen → Connected services.'),
+        if (widget.client?.auth.currentUser?.email case final String email) Text('App account: $email'),
+        if (service.configuration.keyFor(service.platform)?.startsWith('test_') == true)
+          const Text('Test Store · Purchases here are simulated.'),
+        if (busy) const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: LinearProgressIndicator()),
+        if (signedIn) Semantics(liveRegion: true, child: Text(service.message)),
+        if (localMessage != null) Text(localMessage!),
+        if (service.offerings.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text('Choose a plan', style: theme.textTheme.titleLarge),
         ],
-        const SizedBox(height: 24),
-        Text('Current store offering', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
-        if (service.offerings.isEmpty) const Text('No configured subscription product is available to show. Prices and trials are not placeholders.'),
-        for (final offer in service.offerings) Card(child: Padding(padding: const EdgeInsets.all(16),
+        for (final offer in service.gateway is RevenueCatStoreGateway ? <StoreOffering>[] : service.offerings) Card(child: Padding(padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(offer.title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8), Text(offer.description),
-            const SizedBox(height: 8), Text(offer.priceDescription, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8), Text(offer.priceDescription, style: theme.textTheme.titleMedium),
+            if (offer.description.isNotEmpty && offer.description != offer.title) ...[
+              const SizedBox(height: 8), Text(offer.description),
+            ],
             const SizedBox(height: 12),
             FilledButton(onPressed: busy || !service.canPurchase ? null : () => purchase(offer),
               child: const Text('Review purchase in store')),
@@ -145,9 +140,27 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           child: const Text('Restore purchases')),
         if (service.managementUri != null) OutlinedButton.icon(onPressed: busy ? null : manage,
           icon: const Icon(Icons.open_in_new), label: const Text('Manage subscription in the store')),
-        const SizedBox(height: 20),
-        const Text('Cancellation and account deletion are separate actions. Manage a subscription in the store where it was purchased. '
-          'Deleting app data does not automatically cancel a subscription. Exports and your existing local records remain available.'),
-      ]));
+        if (signedIn)
+          TextButton.icon(onPressed: busy ? null : service.refresh,
+            icon: const Icon(Icons.refresh), label: const Text('Refresh plans and access')),
+        if (status != null)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Verified subscription access'),
+            children: [
+              if (status.entitlements.isEmpty) const ListTile(title: Text('No active subscription access')),
+              for (final entitlement in status.entitlements)
+                ListTile(
+                  title: Text(entitlement.key == 'crispy_crust_pro' ? 'Crispy Crust Pro' : entitlement.key),
+                  subtitle: Text(entitlement.state),
+                ),
+            ],
+          ),
+        const SizedBox(height: 12),
+        const Text('Cancel through the store where you subscribed. Deleting your app account does not cancel store billing.'),
+        const AppPolicyLinks(),
+        if (Navigator.canPop(context))
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Back to baking')),
+      ])));
   }
 }
