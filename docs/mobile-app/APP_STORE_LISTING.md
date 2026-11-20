@@ -146,4 +146,3 @@ Use actual app captures. Validate every pictured state and avoid placing essenti
 - Capture real iOS screenshots and replace RevenueCat's blank subscription review screenshots.
 - Connect the server verification key and signed webhook, then verify sandbox purchase, restore, renewal, expiry and account changes.
 - Submit the first subscriptions with the new app version after the device and store checks pass.
-

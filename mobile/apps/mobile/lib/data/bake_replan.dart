@@ -87,4 +87,3 @@ Map<String, dynamic> updatedBakeSchedule(AppRecord bake, RemainingPlan plan, Sch
       'tasks': [...plan.previousTasks, ...candidate.tasks].map((task) => task.toJson()).toList()},
   };
 }
-

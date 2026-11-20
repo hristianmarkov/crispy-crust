@@ -90,4 +90,3 @@ class _KitchenCalculatorState extends State<KitchenCalculatorScreen> {
     );
   }
 }
-

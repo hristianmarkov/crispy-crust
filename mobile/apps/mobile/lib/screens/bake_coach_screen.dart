@@ -208,4 +208,3 @@ class _BakeCoachScreenState extends State<BakeCoachScreen> {
     );
   }
 }
-
