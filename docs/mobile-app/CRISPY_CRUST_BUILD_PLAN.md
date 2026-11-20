@@ -65,6 +65,14 @@ The release contract and resolution rules in this front section take precedence 
 - **Numbers in mockups:** time windows, sample records and reviewed-version labels on the screen board are illustrative fixtures. Domain/content test evidence, not artwork, determines production values.
 - **Scope:** the 24-recipe commission, all F01–F36 capabilities, native companion surfaces and restricted operations tools belong to the same launch. Unsupported device models have a truthful compatibility/manual fallback, not a nonworking promise.
 
+### 1.5 Execution decision — approved shared Supabase project
+
+**11 November 2026, during implementation:** the owner first selected the **Multiple ones** account and **Markov** organisation for the app backend. A separate app project could not be created within that organisation's free-project quota. The owner then explicitly instructed: “use the same db as the website — the website has just 1 table for the waiting list.”
+
+This instruction overrides this document's separate-project recommendation **for the current approved implementation environment**. Use the existing CrispyCrust project `wpxeuwknbuxbtkkkmcsm`, with app objects namespaced under `cc_` and `app_private`; preserve the legacy waitlist tables/data and `crumb-clock-waitlist` function. The Flutter app uses its own authenticated API and data contracts. It must not depend on the marketing website's routes or deployment. Shared infrastructure requires extra care: migrations, policies, Auth settings, storage and scheduled jobs must be reviewed for effects on the existing service. App namespacing does not create the isolation of separate projects.
+
+This is an infrastructure exception only. The marketing-only website boundary, all F01–F36 capabilities, proposed local/free versus service-tier boundaries, unapproved commercial decisions and single full-launch acceptance contract remain in force. Read [the live implementation ledger](../../mobile/IMPLEMENTATION_STATUS.md) and backend deployment records for actual progress and unresolved gates; this specification is not deployment evidence.
+
 ## 2. Product promise and critical assessment
 
 **Promise:** “Good bread. On your time.” Help a baker maintain a starter, find a workable schedule, carry out the bake, recover when reality changes, and repeat a loaf with the same recorded conditions.
@@ -344,7 +352,7 @@ Local-only is not a backup guarantee. Explain that uninstall/device loss can los
 
 #### Account mode
 
-Offer Continue locally, Sign in with Apple, Google, and email OTP. Request sign-in when the user asks for backup/collaboration, not before the first feed. Use Supabase-supported mobile flows, PKCE/state validation and explicit redirect allowlists. OTP copy never reveals whether an email exists; resend throttles, paste/autofill support, expired-code and deliverability states are required. Production sender/domain setup is a launch dependency. [Supabase passwordless email documentation](https://supabase.com/docs/guides/auth/auth-email-passwordless).
+Offer Continue locally, native Google sign-in on Android and iOS, native Sign in with Apple on iOS, and email OTP. Request sign-in when the user asks for backup or collaboration. Exchange provider ID tokens for Supabase sessions and verify Apple's nonce. Offer a labelled Apple browser option on Android so users can reach the same account when switching phones. Use PKCE and an explicit callback allowlist for redirect flows. Test native cancellation, account selection, sign-out, and restoring the same account across devices. OTP copy must avoid exposing whether an email exists and support resend throttles, paste/autofill, and expired-code and delivery states. Production sender and domain setup are launch dependencies. [Supabase native token exchange](https://supabase.com/docs/reference/dart/auth-signinwithidtoken) · [Supabase passwordless email](https://supabase.com/docs/guides/auth/auth-email-passwordless)
 
 Store refresh material in platform secure storage; audit the actual SDK storage defaults instead of assuming its persisted session is encrypted. Reauthentication for account deletion, email change, provider linking and ownership transfer. Identity linking requires an authenticated proof of both accounts; never merge identities by matching email text alone. Test Apple private-relay email and cross-platform restore. A cloud token expiring offline must not block the local active bake. Cloud requests reauthenticate when connectivity returns.
 

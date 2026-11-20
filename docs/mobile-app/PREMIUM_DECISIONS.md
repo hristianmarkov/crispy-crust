@@ -1,0 +1,13 @@
+# Premium decisions — 18 November 2026
+
+Core sourdough work stays free: current recipes, starter care, bake planning, calculators, timers and journal. The paid benefit currently implemented is a larger signed-in baking-coach allowance: 60 questions per UTC calendar month instead of 3, capped at 20 in any 24 hours. Monthly and annual unlock the same entitlement. No trial, unlimited advice, extra recipe collection, image diagnosis or unimplemented feature is advertised.
+
+The owner set GBP 2.99/month and GBP 29.99/year, with localized store prices worldwide. Full annual charge and renewal terms must remain visible; a monthly equivalent is supporting context, not the billed annual amount. Users can close the paywall immediately, keep baking free, restore purchases and open policy/support pages.
+
+Competitor research considered [Rise](https://apps.apple.com/us/app/rise-baking-bread-recipes/id1515369685) and [Kneady](https://apps.apple.com/us/app/kneady-bread-baking-recipes/id1534576984), alongside listings recorded in APP_STORE_LISTING.md. Their positioning emphasizes practical baking guidance, collections and tools. Public listings do not establish conversion rates or prove every feature's precise free/paid split. Our decision is based on the app's currently implemented benefits and recurring AI cost, not an assertion that competitors use this exact allowance.
+
+RevenueCat paywall revision 2 was reviewed through its component tree and rendered previews, then published with explicit owner approval. Design uses the app's cream/olive palette, bread/starter artwork, short guidance benefit, prominent localized plan choices, annual Best value label, immediate close, restore and working privacy/terms/support links. Dynamic prices must be verified on actual Apple/Google products; Test Store preview prices are not production prices.
+
+The backend checks trusted RevenueCat entitlement state and expiry, including valid billing grace. Usage is per account across devices, resets at 00:00 UTC on the first of the month, has no rollover, and counts submitted questions including follow-ups. Retrying an existing request ID does not charge twice. Consent shows the question, recipe and step context sent to OpenAI. Users can report an answer from within the app; food-safety decisions should not rely on generated advice.
+
+The RevenueCatUI integration is present in Flutter source. A native signed build, purchase/restore/account-switch acceptance, Google product mappings and production environment cutover are still required. Publishing dashboard content alone does not complete launch acceptance. See LAUNCH_STATUS.md.

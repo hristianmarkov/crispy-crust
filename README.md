@@ -1,6 +1,6 @@
 # Crispy Crust
 
-A prelaunch marketing website for the sourdough mobile-app product plan. Original loaf-and-clock identity, editorial art direction, generated sourdough photography, four illustrative app screens, a recipe collection showcase and interactive availability examples, interactive feature tabs, and 53 substantive baking guides, seven topic hubs, five free web tools and ungated printable worksheets.
+A prelaunch marketing website for the sourdough mobile-app product plan. C-boule identity, editorial art direction, generated sourdough photography, four illustrative app screens, a recipe collection showcase and a static availability illustration, interactive feature tabs, and 53 substantive baking guides, seven topic hubs, five static formula/example pages and ungated printable worksheets.
 
 ## Run
 
@@ -26,15 +26,15 @@ Next.js App Router with statically generated landing, journal, article, and priv
 
 Set **`NEXT_PUBLIC_SITE_URL` to the real public origin before building** (e.g. `https://www.crispycrust.app`, with no path). This determines canonical, sitemap, and structured-data URLs at build time. Development and Vercel Preview deployments are noindex and disallow crawling, independently of the configured canonical origin. The production fallback is the branded www origin. Rebuild after changing the origin. Register the published sitemap with search engines after deployment. Search indexing and ranking are not guaranteed.
 
-## Early access and privacy
+## Marketing-only boundary and privacy
 
-The form sends validated requests through the Next.js server to the authenticated `crumb-clock-waitlist` Supabase Edge Function. The function uses Supabase's built-in service credentials to call a restricted database function. No database credentials reach the browser. Email addresses are deduplicated by a unique constraint. Removal returns the same success response whether a record existed or not.
+All baking functionality belongs to the Flutter app under `mobile/`. The public site contains product information, illustrative screen previews, static educational articles/formulas and printable downloads. Feature tabs, article search and navigation are content discovery controls; no recipe, schedule, journal or app account is created by the website.
 
-`public.crumb_clock_waitlist` has RLS enabled and no access for `anon` or `authenticated`. Only the service role can read or modify the records. Database rate limits allow eight requests per minute per daily keyed IP hash; raw IPs are not stored. Expired rate entries are cleaned on subsequent requests. No email is sent by signup.
+The signup/removal forms and `/api/waitlist` route have been retired. The site no longer uses `SUPABASE_WAITLIST_URL` or `WAITLIST_SERVER_TOKEN`; it does not need database credentials to run. Historical Supabase waitlist records, rate-limit tables and the separately deployed Edge Function have **not** been changed or deleted by this implementation. Archived schema/configuration remains in `supabase/` as provenance, not an instruction to redeploy it. Do not turn historical signups into app accounts or treat them as consent to app analytics.
 
-Production settings: Next.js preset, Node 24, default output directory, `NEXT_PUBLIC_SITE_URL=https://www.crispycrust.app`. Server-only variables are `SUPABASE_WAITLIST_URL` and `WAITLIST_SERVER_TOKEN`. The Edge Function checks the SHA-256 digest of that token before accessing the database. To rotate it, generate a new random token, replace its digest in the function, redeploy the function, update the Vercel secret and redeploy the website. Never commit the raw token.
+**Before deploying this privacy/retirement change:** the operator must publish a verified, monitored privacy/support contact, define historical-record retention and fulfil deletion requests. The draft notice accurately says it cannot accept/confirm individual requests yet. No unverified address or false claim that data was deleted is supplied. Disabling the historical Edge Function and rotating/removing its credentials is an owner-controlled retirement task; do not delete existing records automatically.
 
-The applied database schema is recorded in `supabase/schema/waitlist.sql`; Supabase migration history tracks its deployment. Deploy the function using `supabase/config.toml` (custom token authentication). Do not expose service-role credentials. Development/preview deployments require their own backend configuration; without it the form fails explicitly rather than claiming success.
+The CTA is an honest app-development status link; no store availability, release date, prices, waitlist confirmation or download links are fabricated. The old `/tools/` URLs remain as static worked examples and `WebPage` structured data, preserving existing guide links without a functional web app.
 
 ## Checks
 
@@ -44,12 +44,12 @@ npm run build
 npm test
 ```
 
-Playwright runs Chromium against the production server and can start it if port 3000 is free. The cloud machine has Chromium at `/usr/bin/chromium`. For other machines set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, or install Playwright's bundled browser with `npx playwright install chromium`. Tests exercise feature tabs and keyboard navigation, FAQs, signup confirmation/deduplication/removal, input and origin rejection, article routes, social assets, mobile navigation, and horizontal overflow at five viewport widths. Test addresses are removed after a successful signup test. Accessibility audits cover the landing page, dialog, and an article.
+Playwright runs Chromium against the production server and can start it if port 3000 is free. The cloud machine has Chromium at `/usr/bin/chromium`. For other machines set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, or install Playwright's bundled browser with `npx playwright install chromium`. Tests exercise feature tabs and keyboard navigation, FAQs, absence of signup forms/API, static development-status messaging, article routes, social assets, mobile navigation, and horizontal overflow at five viewport widths. Accessibility audits cover the landing page, static formula pages, and articles.
 
 ## Brand and assets
 
-- `public/brand/mark.svg`: original scalable loaf-and-clock mark.
-- `public/brand/wordmark.svg`: standalone wordmark.
+- `public/brand/mark.svg`: approved scalable C-boule mark from the mobile handoff.
+- `public/brand/wordmark.svg`: outlined DM Serif Display wordmark from the mobile handoff.
 - `src/components/brand.tsx`: live website identity.
 - `public/images/sourdough.webp`: generated editorial bread photography, not a user bake or testimonial.
 - App screens are code-built **design previews**, not screenshots of a released app. Real screenshots can replace them when the app exists.
@@ -58,7 +58,7 @@ Playwright runs Chromium against the production server and can start it if port 
 
 ## Before launch
 
-The branded domain and durable signup storage are configured. Owner verification in Search Console and Bing Webmaster Tools, search-engine sitemap submission, analytics dashboard activation, and original baking fieldwork require their respective access or evidence. See docs/seo-implementation.md for the implementation record. Pricing and app-store links should be added only when confirmed. App-store availability, testimonials, user counts, and released functionality have intentionally not been fabricated.
+The branded domain is configured; signup functionality has been retired. Owner verification in Search Console and Bing Webmaster Tools, search-engine sitemap submission, analytics dashboard activation, and original baking fieldwork require their respective access or evidence. See docs/seo-implementation.md for the implementation record. Pricing and app-store links should be added only when confirmed. App-store availability, testimonials, user counts, and released functionality have intentionally not been fabricated.
 
 ## SEO content and publishing
 
@@ -70,6 +70,6 @@ Worksheets under `public/downloads/` include A4, US Letter and HTML variants. Re
 
 `GOOGLE_SITE_VERIFICATION` and `BING_SITE_VERIFICATION` accept the exact owner codes from the respective webmaster consoles; rebuild after setting them. Verify a Domain property for `crispycrust.app`, submit `https://www.crispycrust.app/sitemap.xml`, and inspect the declared and selected canonicals after recrawl.
 
-Vercel Web Analytics integration records pageviews and `guide_view`, `tool_started`, `tool_completed`, `printable_download`, `waitlist_open` and `waitlist_signup_success`. Only event names, page paths and controlled tool/file identifiers are sent. Query strings, email addresses and calculator values are excluded; Do Not Track and Global Privacy Control are respected. Enable Web Analytics for the existing Vercel project before treating collection as operational; custom-event availability depends on the current account plan.
+Vercel Web Analytics integration records pageviews and `guide_view` and `printable_download`. Only event names, page paths and controlled tool/file identifiers are sent. Query strings, email addresses and baking entries are excluded; Do Not Track and Global Privacy Control are respected. Enable Web Analytics for the existing Vercel project before treating collection as operational; custom-event availability depends on the current account plan.
 
 An IndexNow ownership key is public under `public/` and recorded in `scripts/indexnow-key.txt`. `node scripts/submit-indexnow.mjs` submits the canonical sitemap URLs to IndexNow. On a push to main, the GitHub workflow waits until the public release marker matches that exact commit before submitting, and can also be run manually. A successful submission means acceptance of the request, not guaranteed indexing.

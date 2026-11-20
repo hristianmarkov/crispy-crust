@@ -1,0 +1,882 @@
+[
+  [
+    "Algeria",
+    "DZD 4,500.00",
+    "No VAT"
+  ],
+  [
+    "Argentina",
+    "ARS 51,200.00",
+    "No VAT"
+  ],
+  [
+    "Australia",
+    "AUD 53.99",
+    "10%"
+  ],
+  [
+    "Austria",
+    "EUR 35.99",
+    "20%"
+  ],
+  [
+    "Azerbaijan",
+    "AZN 54.99",
+    "No VAT"
+  ],
+  [
+    "Bahrain",
+    "USD 35.99",
+    "10%"
+  ],
+  [
+    "Bangladesh",
+    "BDT 4,700.00",
+    "15%"
+  ],
+  [
+    "Belgium",
+    "EUR 35.99",
+    "21%"
+  ],
+  [
+    "Bermuda",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Bolivia",
+    "BOB 384.99",
+    "No VAT"
+  ],
+  [
+    "Brazil",
+    "BRL 194.99",
+    "No VAT"
+  ],
+  [
+    "British Virgin Islands",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Bulgaria",
+    "EUR 35.99",
+    "20%"
+  ],
+  [
+    "Cambodia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Cameroon",
+    "XAF 23,400",
+    "19.25%"
+  ],
+  [
+    "Canada",
+    "CAD 46.99",
+    "No VAT"
+  ],
+  [
+    "Cayman Islands",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Chile",
+    "CLP 39,300",
+    "19%"
+  ],
+  [
+    "Colombia",
+    "COP 110,000",
+    "No VAT"
+  ],
+  [
+    "Costa Rica",
+    "CRC 14,600.00",
+    "No VAT"
+  ],
+  [
+    "Croatia",
+    "EUR 36.99",
+    "25%"
+  ],
+  [
+    "Cyprus",
+    "EUR 35.99",
+    "19%"
+  ],
+  [
+    "Czechia",
+    "CZK 899.99",
+    "21%"
+  ],
+  [
+    "Côte d’Ivoire",
+    "XOF 23,200",
+    "18%"
+  ],
+  [
+    "Denmark",
+    "DKK 279.00",
+    "25% with 2 location overrides Hover over to see all rates"
+  ],
+  [
+    "Ecuador",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Egypt",
+    "EGP 1,999.99",
+    "14%"
+  ],
+  [
+    "El Salvador",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Estonia",
+    "EUR 36.99",
+    "24%"
+  ],
+  [
+    "Ethiopia",
+    "ETB 5,300.00",
+    "No VAT"
+  ],
+  [
+    "Finland",
+    "EUR 37.99",
+    "25.5% with 1 location override Hover over to see all rates"
+  ],
+  [
+    "France",
+    "EUR 35.99",
+    "20% with 11 location overrides Hover over to see all rates"
+  ],
+  [
+    "Georgia",
+    "GEL 99.00",
+    "18%"
+  ],
+  [
+    "Germany",
+    "EUR 35.99",
+    "19%"
+  ],
+  [
+    "Ghana",
+    "GHS 460.00",
+    "20%"
+  ],
+  [
+    "Gibraltar",
+    "GBP 24.99",
+    "No VAT"
+  ],
+  [
+    "Greece",
+    "EUR 36.99",
+    "24%"
+  ],
+  [
+    "Hong Kong",
+    "HKD 258.00",
+    "No VAT"
+  ],
+  [
+    "Hungary",
+    "HUF 13,999",
+    "27%"
+  ],
+  [
+    "India",
+    "INR 3,600.00",
+    "18%"
+  ],
+  [
+    "Indonesia",
+    "IDR 590,000",
+    "No VAT"
+  ],
+  [
+    "Iraq",
+    "IQD 49,600",
+    "No VAT"
+  ],
+  [
+    "Ireland",
+    "EUR 36.99",
+    "23%"
+  ],
+  [
+    "Israel",
+    "ILS 99.90",
+    "No VAT"
+  ],
+  [
+    "Italy",
+    "EUR 36.99",
+    "22%"
+  ],
+  [
+    "Japan",
+    "JPY 5,800",
+    "10%"
+  ],
+  [
+    "Jordan",
+    "JOD 23.300",
+    "No VAT"
+  ],
+  [
+    "Kazakhstan",
+    "KZT 16,990.00",
+    "16%"
+  ],
+  [
+    "Kenya",
+    "KES 5,000.00",
+    "16%"
+  ],
+  [
+    "Kuwait",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Latvia",
+    "EUR 35.99",
+    "21%"
+  ],
+  [
+    "Liechtenstein",
+    "CHF 30.00",
+    "8.1%"
+  ],
+  [
+    "Lithuania",
+    "EUR 35.99",
+    "21%"
+  ],
+  [
+    "Luxembourg",
+    "EUR 34.99",
+    "17%"
+  ],
+  [
+    "Macao",
+    "MOP 268.00",
+    "No VAT"
+  ],
+  [
+    "Malaysia",
+    "MYR 144.99",
+    "8%"
+  ],
+  [
+    "Mexico",
+    "MXN 719.00",
+    "16%"
+  ],
+  [
+    "Micronesia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Monaco",
+    "EUR 35.99",
+    "20%"
+  ],
+  [
+    "Mongolia",
+    "MNT 118,400.00",
+    "No VAT"
+  ],
+  [
+    "Morocco",
+    "MAD 394.99",
+    "20%"
+  ],
+  [
+    "Myanmar (Burma)",
+    "MMK 69,000",
+    "No VAT"
+  ],
+  [
+    "Netherlands",
+    "EUR 35.99",
+    "21%"
+  ],
+  [
+    "New Zealand",
+    "NZD 69.99",
+    "15%"
+  ],
+  [
+    "Nigeria",
+    "NGN 48,000.00",
+    "7.5%"
+  ],
+  [
+    "Norway",
+    "NOK 399.00",
+    "25% with 1 location override Hover over to see all rates"
+  ],
+  [
+    "Oman",
+    "USD 33.99",
+    "5%"
+  ],
+  [
+    "Pakistan",
+    "PKR 9,100.00",
+    "No VAT"
+  ],
+  [
+    "Panama",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Paraguay",
+    "PYG 200,000",
+    "No VAT"
+  ],
+  [
+    "Peru",
+    "PEN 114.99",
+    "No VAT"
+  ],
+  [
+    "Philippines",
+    "PHP 2,350.00",
+    "12%"
+  ],
+  [
+    "Poland",
+    "PLN 164.99",
+    "23%"
+  ],
+  [
+    "Portugal",
+    "EUR 36.99",
+    "23%"
+  ],
+  [
+    "Qatar",
+    "QAR 120.00",
+    "No VAT"
+  ],
+  [
+    "Romania",
+    "RON 194.99",
+    "21%"
+  ],
+  [
+    "Russia",
+    "RUB 2,699.00",
+    "No VAT"
+  ],
+  [
+    "San Marino",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Saudi Arabia",
+    "SAR 139.99",
+    "15%"
+  ],
+  [
+    "Senegal",
+    "XOF 23,200",
+    "18%"
+  ],
+  [
+    "Serbia",
+    "RSD 4,199.00",
+    "20%"
+  ],
+  [
+    "Singapore",
+    "SGD 45.99",
+    "9%"
+  ],
+  [
+    "Slovakia",
+    "EUR 36.99",
+    "23%"
+  ],
+  [
+    "Slovenia",
+    "EUR 36.99",
+    "22%"
+  ],
+  [
+    "South Africa",
+    "ZAR 649.99",
+    "15%"
+  ],
+  [
+    "South Korea",
+    "KRW 48,000",
+    "10%"
+  ],
+  [
+    "Spain",
+    "EUR 35.99",
+    "21% with 4 location overrides Hover over to see all rates"
+  ],
+  [
+    "Sri Lanka",
+    "LKR 11,000.00",
+    "No VAT"
+  ],
+  [
+    "Sweden",
+    "SEK 419.00",
+    "25%"
+  ],
+  [
+    "Switzerland",
+    "CHF 28.00",
+    "No VAT"
+  ],
+  [
+    "Taiwan",
+    "TWD 1,140.00",
+    "5%"
+  ],
+  [
+    "Tanzania",
+    "TZS 87,000.00",
+    "No VAT"
+  ],
+  [
+    "Thailand",
+    "THB 1,200.00",
+    "7%"
+  ],
+  [
+    "Turks & Caicos Islands",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Türkiye",
+    "TRY 1,989.99",
+    "20%"
+  ],
+  [
+    "Ukraine",
+    "UAH 1,799.99",
+    "20%"
+  ],
+  [
+    "United Arab Emirates",
+    "AED 124.99",
+    "5%"
+  ],
+  [
+    "United Kingdom",
+    "GBP 29.99",
+    "20%"
+  ],
+  [
+    "United States",
+    "USD 32.99",
+    "No VAT with 7 location overrides Hover over to see all rates"
+  ],
+  [
+    "Uzbekistan",
+    "UZS 441,100.00",
+    "12%"
+  ],
+  [
+    "Vatican City",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Vietnam",
+    "VND 844,000",
+    "No VAT"
+  ],
+  [
+    "New countries/regions (USD)",
+    "USD 32.84",
+    "No VAT"
+  ],
+  [
+    "Albania",
+    "USD 38.99",
+    "20%"
+  ],
+  [
+    "Angola",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Antigua & Barbuda",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Armenia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Aruba",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Bahamas",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Belarus",
+    "USD 38.99",
+    "20%"
+  ],
+  [
+    "Belize",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Bosnia & Herzegovina",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Botswana",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Cape Verde",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Chad",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Comoros",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Congo - Brazzaville",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Congo - Kinshasa",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Djibouti",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Dominica",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Dominican Republic",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Eritrea",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Fiji",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Gambia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Grenada",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Guatemala",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Guinea",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Haiti",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Honduras",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Jamaica",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Kyrgyzstan",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Laos",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Lebanon",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Liberia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Libya",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Maldives",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Mauritius",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Moldova",
+    "USD 38.99",
+    "20%"
+  ],
+  [
+    "Mozambique",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Namibia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Nepal",
+    "USD 36.99",
+    "13%"
+  ],
+  [
+    "Nicaragua",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "North Macedonia",
+    "USD 38.99",
+    "18%"
+  ],
+  [
+    "Papua New Guinea",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Rwanda",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Samoa",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Seychelles",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Sierra Leone",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Solomon Islands",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Somalia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "St Kitts & Nevis",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "St Lucia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Suriname",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Tajikistan",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Tonga",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Trinidad & Tobago",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Tunisia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Turkmenistan",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Uganda",
+    "USD 38.99",
+    "18%"
+  ],
+  [
+    "Uruguay",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Vanuatu",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Venezuela",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Yemen",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Zambia",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "Zimbabwe",
+    "USD 32.99",
+    "No VAT"
+  ],
+  [
+    "New countries/regions (EUR)",
+    "EUR 29.95",
+    "No VAT"
+  ],
+  [
+    "Benin",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Burkina Faso",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Central African Republic",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Gabon",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Guinea-Bissau",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Iceland",
+    "EUR 36.99",
+    "24%"
+  ],
+  [
+    "Mali",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Malta",
+    "EUR 34.99",
+    "18%"
+  ],
+  [
+    "Niger",
+    "EUR 29.99",
+    "No VAT"
+  ],
+  [
+    "Togo",
+    "EUR 29.99",
+    "No VAT"
+  ]
+]

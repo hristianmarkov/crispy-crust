@@ -1,11 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { guides } from "../src/data/guides";
 import { journalTopics } from "../src/lib/journal";
-import {
-  calculateSchedule,
-  defaultSchedule,
-  isAvailable,
-} from "../src/lib/schedule-calculator";
 
 const origin = "https://www.crispycrust.app";
 const tools = [
@@ -180,137 +175,15 @@ test("unknown guides and topics return a real 404", async ({ request }) => {
   }
 });
 
-test("schedule arithmetic preserves cooling, midnight and conflicting hands-on work", () => {
-  const alwaysHome = calculateSchedule({
-    ...defaultSchedule,
-    homeStart: "00:00",
-    homeEnd: "00:00",
-  });
-  expect(alwaysHome.error).toBeNull();
-  expect(alwaysHome.conflicts).toEqual([]);
-  const cooling = alwaysHome.rows.find((row) => row.id === "cool")!;
-  expect(cooling.end.getTime() - cooling.start.getTime()).toBe(
-    defaultSchedule.cooling * 60_000,
-  );
-  expect(cooling.end.getTime()).toBe(alwaysHome.serving.getTime());
-  expect(
-    alwaysHome.rows.find((row) => row.id === "shape")!.start.getDate(),
-  ).toBeLessThan(alwaysHome.serving.getDate());
-  const overnightStart = new Date(2026, 10, 14, 23, 45);
-  const overnightEnd = new Date(2026, 10, 15, 0, 10);
-  expect(isAvailable(overnightStart, overnightEnd, "22:00", "02:00")).toBe(
-    true,
-  );
-  expect(isAvailable(overnightStart, overnightEnd, "07:00", "22:00")).toBe(
-    false,
-  );
-  const impossible = calculateSchedule({
-    ...defaultSchedule,
-    homeStart: "12:00",
-    homeEnd: "12:01",
-  });
-  expect(impossible.conflicts.length).toBeGreaterThan(0);
-  expect(impossible.laterServing).toBeNull();
-  expect(impossible.rows.find((row) => row.id === "cool")!.end.getTime()).toBe(
-    impossible.serving.getTime(),
-  );
-  expect(
-    calculateSchedule({ ...defaultSchedule, mixing: defaultSchedule.bulk + 1 })
-      .error,
-  ).toBeTruthy();
-});
-
-test("feeding, hydration and rise calculators reconcile the playbook examples and reject invalid inputs", async ({
-  page,
-}) => {
-  await page.goto("/tools/starter-feeding-calculator");
-  await expect(
-    page.getByRole("heading", { name: "Your feed by weight" }),
-  ).toBeVisible();
-  const feed = page.locator(".tools-stats");
-  await expect(feed).toContainText("35 g");
-  await expect(feed).toContainText("70 g");
-  await expect(feed).toContainText("175 g");
-  await page.getByLabel("Calculate from").selectOption("retained");
-  await page.getByLabel("Retained starter (g)", { exact: true }).fill("20");
-  await expect(feed).toContainText("100 g");
-  await page.getByLabel("Fresh flour parts", { exact: true }).fill("0");
-  await expect(
-    page.getByText("Enter valid amounts in every field.", { exact: false }),
-  ).toBeVisible();
-
-  await page.goto("/tools/sourdough-hydration-calculator");
-  await expect(
-    page.getByRole("heading", { name: "72.7% total dough hydration" }),
-  ).toBeVisible();
-  await expect(page.locator(".tools-stats")).toContainText("550 g");
-  await expect(page.locator(".tools-stats")).toContainText("400 g");
-  await page.getByLabel("Starter hydration (%)", { exact: true }).fill("50");
-  await expect(
-    page.getByRole("heading", { name: "67.6% total dough hydration" }),
-  ).toBeVisible();
-  await page.getByLabel("Added flour (g)", { exact: true }).fill("");
-  await expect(
-    page.getByText("Enter valid amounts in every field.", { exact: false }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Reset example", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "72.7% total dough hydration" }),
-  ).toBeVisible();
-
-  await page.goto("/tools/sourdough-rise-calculator");
-  await expect(
-    page.getByRole("heading", { name: "50% measured rise" }),
-  ).toBeVisible();
-  await page.getByLabel("Current reading (mL)", { exact: true }).fill("300");
-  await expect(
-    page.getByRole("heading", { name: "-25% measured rise" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("The current reading is below the start.", { exact: false }),
-  ).toBeVisible();
-  await page.getByLabel("Starting reading (mL)", { exact: true }).fill("0");
-  await expect(
-    page.getByText("Enter valid amounts in every field.", { exact: false }),
-  ).toBeVisible();
-});
-
-test("the schedule exposes a no-fit case and preserves the cooling stage in its downloadable plan", async ({
-  page,
-}) => {
-  await page.goto("/tools/sourdough-schedule-calculator");
-  await expect(page.getByRole("table")).toContainText("Cool before slicing");
-  await page.getByLabel("Home each day from", { exact: true }).fill("12:00");
-  await page.getByLabel("Home each day until", { exact: true }).fill("12:01");
-  await expect(
-    page.getByText("No fit was found in the next seven days", { exact: false }),
-  ).toBeVisible();
-  await expect(page.getByRole("table")).toContainText("Outside home window");
-  const download = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "Download schedule CSV", exact: true })
-    .click();
-  expect((await download).suggestedFilename()).toBe(
-    "crispy-crust-sourdough-schedule.csv",
-  );
-});
-
-test("the discard finder responds to grams and equipment rather than showing an unfiltered roundup", async ({
-  page,
-}) => {
-  await page.goto("/tools/discard-recipe-finder");
-  await expect(page.locator(".tools-recipe-card")).toHaveCount(5);
-  await page
-    .getByLabel("Usable discard on hand (g)", { exact: true })
-    .fill("100");
-  await expect(page.locator(".tools-recipe-card")).toHaveCount(1);
-  await page.getByRole("combobox", { name: /equipment/i }).selectOption("Oven");
-  await expect(page.locator(".tools-recipe-card")).toHaveCount(0);
-  await expect(
-    page.getByText("This collection starts at 100 g.", { exact: false }),
-  ).toBeVisible();
+test("former tools are static explainers, not web application calculators", async ({ page }) => {
+  for (const route of tools.slice(1)) {
+    await page.goto(route);
+    await expect(page.locator("main")).toContainText("Worked example only.");
+    await expect(page.locator("main input, main select, main textarea, main form")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Worked example", exact: true })).toBeVisible();
+    const html = await page.content();
+    expect(html).not.toContain('"@type":"WebApplication"');
+  }
 });
 
 test("A4 and Letter printables download as PDFs without a signup gate", async ({
@@ -377,7 +250,7 @@ test("journal and tools remain usable on a narrow mobile screen", async ({
   }
 });
 
-test("journal search, direct worksheet links and the embedded rise tool form a working reader journey", async ({
+test("journal search, direct worksheet links and static rise guidance form a reader journey", async ({
   page,
 }) => {
   await page.goto("/journal");
@@ -411,15 +284,9 @@ test("journal search, direct worksheet links and the embedded rise tool form a w
   const rise = guides.find((guide) => guide.number === 16)!;
   await page.goto(`/journal/${rise.slug}`);
   const embedded = page.locator(".embedded-rise-calculator");
-  await expect(
-    embedded.getByRole("heading", { name: "50% measured rise" }),
-  ).toBeVisible();
-  await embedded
-    .getByLabel("Current reading (mL)", { exact: true })
-    .fill("800");
-  await expect(
-    embedded.getByRole("heading", { name: "100% measured rise" }),
-  ).toBeVisible();
+  await expect(embedded).toContainText("400 mL starting mark rising to 600 mL is a 50% increase");
+  await expect(embedded.locator("input,select,button")).toHaveCount(0);
+
 });
 
 test("server-rendered navigation and contextual internal links lead to live destinations", async ({

@@ -1,0 +1,177 @@
+name: TestFlight candidate
+on:
+  push:
+    branches: [feat/flutter-mobile-app, main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Apple marketing version
+        required: true
+        default: '1.0'
+      build_number:
+        description: Unused Apple build number
+        required: true
+        default: '11'
+permissions:
+  contents: read
+concurrency:
+  group: crispy-testflight
+  cancel-in-progress: false
+jobs:
+  testflight:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[testflight]')
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment: mobile-release
+    env:
+      CRISPY_APP_VERSION: ${{ inputs.version || '1.0' }}
+      CRISPY_APP_BUILD_NUMBER: ${{ inputs.build_number || '11' }}
+      FASTLANE_OPT_OUT_USAGE: 'true'
+      FASTLANE_SKIP_UPDATE_CHECK: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install native build tools
+        run: gem install cocoapods -v 1.16.2 --no-document && gem install xcodeproj -v 1.27.0 --no-document && gem install fastlane --no-document
+      - name: Prepare private signing files
+        env:
+          RELEASE_CONFIG: ${{ secrets.CRISPY_RELEASE_CONFIG_JSON }}
+          CERTIFICATE: ${{ secrets.CRISPY_IOS_DISTRIBUTION_P12_BASE64 }}
+          PHONE_PROFILE: ${{ secrets.CRISPY_IOS_PHONE_PROFILE_BASE64 }}
+          WATCH_PROFILE: ${{ secrets.CRISPY_IOS_WATCH_PROFILE_BASE64 }}
+          WIDGET_PROFILE: ${{ secrets.CRISPY_IOS_WIDGET_PROFILE_BASE64 }}
+          ASC_KEY: ${{ secrets.CRISPY_ASC_PRIVATE_KEY_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, pathlib, plistlib, secrets, subprocess
+          work = pathlib.Path(os.environ['RUNNER_TEMP']) / 'crispy-signing'
+          work.mkdir(mode=0o700)
+          config = json.loads(os.environ['RELEASE_CONFIG'])
+          allowed = {'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'GOOGLE_WEB_CLIENT_ID',
+                     'GOOGLE_IOS_CLIENT_ID', 'REVENUECAT_IOS_PUBLIC_SDK_KEY', 'REVENUECAT_ANDROID_PUBLIC_SDK_KEY',
+                     'REVENUECAT_TEST_STORE_PUBLIC_SDK_KEY', 'POSTHOG_PROJECT_TOKEN', 'POSTHOG_HOST'}
+          if not set(config).issubset(allowed):
+              raise SystemExit('Release config contains an unexpected key; server secrets must never enter a client build.')
+          (work / 'release.json').write_text(json.dumps(config))
+          for variable, filename in [('CERTIFICATE','distribution.p12'), ('ASC_KEY','AuthKey.p8')]:
+              (work / filename).write_bytes(base64.b64decode(os.environ[variable], validate=True))
+          expected = {'PHONE_PROFILE':'app.crispycrust.mobile', 'WATCH_PROFILE':'app.crispycrust.mobile.watch',
+                      'WIDGET_PROFILE':'app.crispycrust.mobile.widgets'}
+          profiles = {}
+          destination = pathlib.Path.home() / 'Library/MobileDevice/Provisioning Profiles'
+          destination.mkdir(parents=True, exist_ok=True)
+          for variable, bundle in expected.items():
+              path = work / (variable + '.mobileprovision')
+              path.write_bytes(base64.b64decode(os.environ[variable], validate=True))
+              profile = plistlib.loads(subprocess.check_output(['security','cms','-D','-i',str(path)], stderr=subprocess.DEVNULL))
+              team = profile['TeamIdentifier'][0]
+              if team != '6X9UVM8P4G' or profile['Entitlements']['application-identifier'] != team + '.' + bundle:
+                  raise SystemExit('Provisioning profile does not match the Crispy Crust team and bundle.')
+              if profile['Entitlements'].get('get-task-allow', False) or 'ProvisionedDevices' in profile:
+                  raise SystemExit('An App Store distribution profile is required.')
+              profiles[bundle] = {'team':team, 'uuid':profile['UUID'], 'name':profile['Name']}
+              (destination / (profile['UUID'] + '.mobileprovision')).write_bytes(path.read_bytes())
+          (work / 'profiles.json').write_text(json.dumps(profiles))
+          password = secrets.token_urlsafe(32)
+          print('::add-mask::' + password)
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              for key, value in {'CRISPY_SIGNING_DIR':str(work), 'CRISPY_KEYCHAIN_PASSWORD':password,
+                                'CRISPY_CRUST_BUILD_CONFIG':str(work/'release.json'),
+                                'CRISPY_IOS_PROFILE_MANIFEST':str(work/'profiles.json'),
+                                'CRISPY_IOS_EXPORT_OPTIONS':str(work/'ExportOptions.plist'),
+                                'CRISPY_ASC_KEY_PATH':str(work/'AuthKey.p8')}.items():
+                  output.write(key + '=' + value + '\n')
+          PY
+      - name: Import distribution identity
+        env:
+          CERTIFICATE_PASSWORD: ${{ secrets.CRISPY_IOS_DISTRIBUTION_P12_PASSWORD }}
+        run: |
+          set -o pipefail
+          KEYCHAIN_PATH="$CRISPY_SIGNING_DIR/release.keychain-db"
+          # Validate the supplied archive before blaming Keychain for its generic
+          # password error. Rewrap with the runner's native OpenSSL for macOS
+          # compatibility; the temporary PEM private key stays encrypted.
+          /opt/homebrew/bin/openssl pkcs12 -in "$CRISPY_SIGNING_DIR/distribution.p12" -passin env:CERTIFICATE_PASSWORD -info -noout
+          /opt/homebrew/bin/openssl pkcs12 -in "$CRISPY_SIGNING_DIR/distribution.p12" -passin env:CERTIFICATE_PASSWORD -passout env:CERTIFICATE_PASSWORD -out "$CRISPY_SIGNING_DIR/distribution-encrypted.pem"
+          /usr/bin/openssl pkcs12 -export -in "$CRISPY_SIGNING_DIR/distribution-encrypted.pem" -inkey "$CRISPY_SIGNING_DIR/distribution-encrypted.pem" -passin env:CERTIFICATE_PASSWORD -passout env:CERTIFICATE_PASSWORD -out "$CRISPY_SIGNING_DIR/distribution-native.p12"
+          security create-keychain -p "$CRISPY_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$CRISPY_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CRISPY_SIGNING_DIR/distribution-native.p12" -k "$KEYCHAIN_PATH" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$CRISPY_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" "$HOME/Library/Keychains/login.keychain-db"
+      - name: Generate configured native targets
+        run: bash mobile/scripts/bootstrap.sh
+      - name: Validate launch storyboard before app compilation
+        run: |
+          xcrun ibtool --errors --warnings --notices --sdk "$(xcrun --sdk iphoneos --show-sdk-path)" --minimum-deployment-target 15.0 --target-device iphone --target-device ipad --compile "$CRISPY_SIGNING_DIR/LaunchScreen.storyboardc" mobile/apps/mobile/ios/Runner/Base.lproj/LaunchScreen.storyboard
+      - name: Configure release signing
+        run: ruby mobile/scripts/configure_ios_release.rb
+      - name: Build signed phone, watch and widget archive
+        working-directory: mobile/apps/mobile
+        run: |
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter build ipa --release --build-name="$CRISPY_APP_VERSION" --build-number="$CRISPY_APP_BUILD_NUMBER" --dart-define-from-file="$CRISPY_CRUST_BUILD_CONFIG" --export-options-plist="$CRISPY_IOS_EXPORT_OPTIONS"
+      - name: Validate exported bundle versions, watch icon and privacy manifests
+        run: |
+          python3 - <<'PY'
+          import pathlib, plistlib, zipfile
+          ipa = next(pathlib.Path('mobile/apps/mobile/build/ios/ipa').glob('*.ipa'))
+          with zipfile.ZipFile(ipa) as package:
+              main = plistlib.loads(package.read('Payload/Runner.app/Info.plist'))
+              for root in ['Payload/Runner.app', 'Payload/Runner.app/PlugIns/CrispyWidgets.appex']:
+                  privacy = plistlib.loads(package.read(root + '/PrivacyInfo.xcprivacy'))
+                  if privacy.get('NSPrivacyTracking') is not False:
+                      raise SystemExit('Unexpected tracking declaration: ' + root)
+                  if not any(row.get('NSPrivacyAccessedAPIType') == 'NSPrivacyAccessedAPICategoryUserDefaults'
+                             and '1C8F.1' in row.get('NSPrivacyAccessedAPITypeReasons', [])
+                             for row in privacy.get('NSPrivacyAccessedAPITypes', [])):
+                      raise SystemExit('App Group defaults reason is missing: ' + root)
+              for bundle in ['Watch/CrispyWatch.app', 'PlugIns/CrispyWidgets.appex']:
+                  root = 'Payload/Runner.app/' + bundle
+                  info = plistlib.loads(package.read(root + '/Info.plist'))
+                  for key in ['CFBundleShortVersionString', 'CFBundleVersion']:
+                      if info[key] != main[key]:
+                          raise SystemExit('Companion version does not match the phone: ' + bundle + ' / ' + key)
+                  if bundle.startswith('Watch/'):
+                      if not info.get('CFBundleIconName') or root + '/Assets.car' not in package.namelist():
+                          raise SystemExit('Watch app icon catalogue is missing from the signed IPA.')
+          print('Signed bundle versions, watch icon and phone/widget privacy manifests are valid.')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crispy-testflight-${{ env.CRISPY_APP_BUILD_NUMBER }}
+          path: mobile/apps/mobile/build/ios/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload to TestFlight
+        working-directory: mobile
+        env:
+          CRISPY_ASC_KEY_ID: ${{ secrets.CRISPY_ASC_KEY_ID }}
+          CRISPY_ASC_ISSUER_ID: ${{ secrets.CRISPY_ASC_ISSUER_ID }}
+        run: |
+          export CRISPY_IOS_IPA="$(find "$GITHUB_WORKSPACE/mobile/apps/mobile/build/ios/ipa" -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$CRISPY_IOS_IPA"
+          fastlane ios upload_candidate
+      - name: Remove private signing material
+        if: always()
+        run: |
+          if [ -n "${CRISPY_SIGNING_DIR:-}" ]; then
+            security delete-keychain "$CRISPY_SIGNING_DIR/release.keychain-db" || true
+            python3 - <<'PY'
+          import os, pathlib, shutil
+          root = pathlib.Path(os.environ['RUNNER_TEMP']).resolve()
+          work = pathlib.Path(os.environ['CRISPY_SIGNING_DIR']).resolve()
+          if work.parent != root or work.name != 'crispy-signing':
+              raise SystemExit('Unexpected signing cleanup path')
+          shutil.rmtree(work, ignore_errors=True)
+          PY
+          fi

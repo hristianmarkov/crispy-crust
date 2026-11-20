@@ -1,0 +1,22 @@
+default_platform(:ios)
+
+platform :ios do
+  desc 'Upload the signed candidate to TestFlight without public submission'
+  lane :upload_candidate do
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch('CRISPY_ASC_KEY_ID'),
+      issuer_id: ENV.fetch('CRISPY_ASC_ISSUER_ID'),
+      key_filepath: ENV.fetch('CRISPY_ASC_KEY_PATH'),
+      in_house: false
+    )
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: 'app.crispycrust.mobile',
+      apple_id: '6836109226',
+      ipa: ENV.fetch('CRISPY_IOS_IPA'),
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      notify_external_testers: false
+    )
+  end
+end

@@ -3,13 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { tools } from "@/data/tools";
 import { siteUrl } from "@/lib/site";
-import {
-  FeedingCalculator,
-  HydrationCalculator,
-  RiseCalculator,
-  DiscardFinder,
-} from "@/components/tools-calculators";
-import { ScheduleCalculator } from "@/components/tools-schedule";
 export const dynamicParams = false;
 export function generateStaticParams() {
   return tools.map((t) => ({ slug: t.slug }));
@@ -59,15 +52,11 @@ export default async function ToolPage({
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "WebApplication",
+        "@type": "WebPage",
         "@id": `${siteUrl}/tools/${slug}#tool`,
         name: t.title,
         description: t.description,
         url: `${siteUrl}/tools/${slug}`,
-        applicationCategory: "LifestyleApplication",
-        operatingSystem: "Any",
-        browserRequirements:
-          "JavaScript enabled for interactive calculations; formula and examples available as HTML",
         isAccessibleForFree: true,
         publisher: {
           "@type": "Organization",
@@ -82,7 +71,7 @@ export default async function ToolPage({
           {
             "@type": "ListItem",
             position: 2,
-            name: "Baking tools",
+            name: "Baking explainers",
             item: `${siteUrl}/tools`,
           },
           {
@@ -106,31 +95,16 @@ export default async function ToolPage({
       <nav aria-label="Breadcrumb" className="tools-breadcrumb">
         <Link href="/">Home</Link>
         <span>/</span>
-        <Link href="/tools">Baking tools</Link>
+        <Link href="/tools">Baking explainers</Link>
       </nav>
       <header className="tools-heading">
         <span className="eyebrow">{t.eyebrow}</span>
         <h1>{t.title}</h1>
         <p>{t.description}</p>
       </header>
-      {slug === "starter-feeding-calculator" ? (
-        <FeedingCalculator />
-      ) : slug === "sourdough-hydration-calculator" ? (
-        <HydrationCalculator />
-      ) : slug === "sourdough-schedule-calculator" ? (
-        <ScheduleCalculator />
-      ) : slug === "sourdough-rise-calculator" ? (
-        <RiseCalculator />
-      ) : (
-        <DiscardFinder />
-      )}
-      <noscript>
-        <p className="tools-note">
-          JavaScript is disabled. Use the formula and worked example below to
-          calculate your own result. All recipe links and guidance remain
-          available.
-        </p>
-      </noscript>
+      <aside className="tools-note" aria-label="Static educational content">
+        <strong>Worked example only.</strong> This marketing website no longer runs calculators or saves baking plans. The formulas and examples below explain the maths. Interactive baking tools are being built for the mobile app.
+      </aside>
       <section className="tools-prose" aria-labelledby="formula">
         <h2 id="formula">The calculation</h2>
         <p className="tools-formula">{t.formula}</p>
@@ -213,7 +187,7 @@ export default async function ToolPage({
       <aside className="tools-next">
         <h2>A little more know-how.</h2>
         <p>
-          Keep your calculations alongside clear observations. The journal
+          Read the worked examples alongside clear observations. The journal
           connects each number to a practical baking decision.
         </p>
         <Link className="tools-button" href="/journal">

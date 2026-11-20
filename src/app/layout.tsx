@@ -8,7 +8,6 @@ import "@fontsource/dm-serif-display/400-italic.css";
 import "./globals.css";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { WaitlistDialog } from "@/components/site-interactions";
 import { siteUrl, isPublicSite } from "@/lib/site";
 import { SiteAnalytics } from "@/components/site-analytics";
 export const metadata: Metadata = {
@@ -18,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s | Crispy Crust",
   },
   description:
-    "An upcoming sourdough baking app for starter care, recipe-specific schedules and a bake journal. Explore free guides, calculators and printable baking logs.",
+    "An upcoming sourdough baking app for starter care, recipe-specific schedules and a bake journal. Explore baking guides, worked examples and printable baking logs.",
   applicationName: "Crispy Crust",
   openGraph: {
     type: "website",
@@ -66,7 +65,6 @@ export default function RootLayout({
         <Header />
         {children}
         <Footer />
-        <WaitlistDialog />
         {isPublicSite && <SiteAnalytics />}
       </body>
     </html>

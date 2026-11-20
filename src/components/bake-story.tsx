@@ -1,5 +1,3 @@
-"use client";
-import { useState } from "react";
 import { ArrowUpRight, Check, Clock3, Snowflake } from "lucide-react";
 const recipes = [
   {
@@ -169,8 +167,7 @@ const examples = [
   },
 ];
 export function ScheduleExample() {
-  const [selected, setSelected] = useState(0);
-  const e = examples[selected];
+  const e = examples[0];
   return (
     <section className="schedule-story section" id="your-schedule">
       <div className="schedule-story-copy">
@@ -181,7 +178,7 @@ export function ScheduleExample() {
           <em>Start there.</em>
         </h2>
         <p>
-          Select the times you’re available during the day. Crispy Crust uses
+          In the planned app, you will add the times you’re available. The planner will use
           those windows, your chosen recipe and its waiting stages to suggest a
           workable bake.
         </p>
@@ -189,8 +186,8 @@ export function ScheduleExample() {
           Hands-on tasks need you. Fermentation and a fridge proof often don’t.
           See the difference before you commit to a plan.
         </p>
-        <a className="text-link" href="#early-access">
-          Get launch updates <ArrowUpRight size={17} />
+        <a className="text-link" href="#app-status">
+          See app development status <ArrowUpRight size={17} />
         </a>
       </div>
       <div className="schedule-demo">
@@ -198,26 +195,12 @@ export function ScheduleExample() {
           <span>
             <Clock3 size={16} /> A COUNTRY SOURDOUGH EXAMPLE
           </span>
-          <span>PLANNER PREVIEW</span>
+          <span>STATIC APP PREVIEW</span>
         </div>
-        <div
-          className="scenario-buttons"
-          role="group"
-          aria-label="Example baking schedules"
-        >
-          {examples.map((x, i) => (
-            <button
-              key={x.label}
-              aria-pressed={selected === i}
-              onClick={() => setSelected(i)}
-            >
-              {x.label}
-            </button>
-          ))}
-        </div>
+        <p className="section-footnote">Static illustration — not a working planner. No schedule is calculated or saved on this website.</p>
         <div className="availability">
           <span>
-            <Check size={15} /> YOUR AVAILABLE HOURS
+            <Check size={15} /> ILLUSTRATIVE AVAILABLE HOURS
           </span>
           <strong>{e.window}</strong>
         </div>

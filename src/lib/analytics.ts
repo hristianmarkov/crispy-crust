@@ -7,7 +7,7 @@ export function allowsAnalytics() {
     !(navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl;
 }
 
-export function recordEvent(name: "guide_view" | "tool_started" | "tool_completed" | "waitlist_open" | "waitlist_signup_success" | "printable_download", properties: Record<string, string> = {}) {
+export function recordEvent(name: "guide_view" | "tool_started" | "tool_completed" | "printable_download", properties: Record<string, string> = {}) {
   if (!allowsAnalytics()) return;
   // Only controlled event names, paths and tool identifiers; never form values.
   const data = { path: window.location.pathname, ...properties };

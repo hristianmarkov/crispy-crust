@@ -1,9 +1,9 @@
 export const tools = [
   {
     slug: "starter-feeding-calculator",
-    title: "Sourdough Starter Feeding Calculator",
+    title: "Sourdough Starter Feeding: Formula & Example",
     description:
-      "Calculate starter, flour and water from your feeding ratio, a bake quantity plus reserve, or the starter you retain.",
+      "Understand starter, flour and water weights through a worked feeding-ratio example.",
     eyebrow: "Keep your starter",
     formula:
       "One part = (starter needed + reserve) ÷ (starter parts + flour parts + water parts).",
@@ -24,14 +24,14 @@ export const tools = [
   },
   {
     slug: "sourdough-schedule-calculator",
-    title: "Sourdough Schedule Calculator",
+    title: "Sourdough Schedules: A Worked Example",
     description:
       "Work backwards from serving time through cooling, baking and fermentation, then check hands-on steps against the hours you are home.",
     eyebrow: "Find your baking window",
     formula:
       "Work backwards: serving − cooling − baking = oven loading. Subtract the final proof, shaping and bulk stages to find mixing time. Preheating overlaps the end of the cold proof.",
     example:
-      "Illustrative Sunday 11:00 plan: cool from 09:00, bake from 08:10 and preheat from 07:25. With a 12-hour cold proof, shaping is Saturday 19:50–20:10, mixing begins 14:50, and an eight-hour starter window starts 06:50. A 07:00–22:00 home window conflicts with that feed; the calculator suggests an 11:15 serving time with the same durations.",
+      "Illustrative Sunday 11:00 plan: cool from 09:00, bake from 08:10 and preheat from 07:25. With a 12-hour cold proof, shaping is Saturday 19:50–20:10, mixing begins 14:50, and an eight-hour starter window starts 06:50. A 07:00–22:00 home window conflicts with that feed; the worked comparison uses an 11:15 serving time with the same durations.",
     limit:
       "Replace the example durations with a recipe you have tested in your kitchen. Fermentation timings are estimates. When the dough is not ready, reassess the serving time and follow the recipe’s readiness cues. A home window is assumed to repeat every day; specific appointments still need a manual check.",
     links: [
@@ -51,16 +51,16 @@ export const tools = [
   },
   {
     slug: "sourdough-hydration-calculator",
-    title: "Sourdough Hydration Calculator",
+    title: "Sourdough Hydration: Formula & Example",
     description:
-      "Calculate total dough hydration including your starter, with separate flour and water contributions for liquid or stiff starter.",
+      "Understand total dough hydration including liquid or stiff starter through a worked example.",
     eyebrow: "Understand the dough",
     formula:
       "Starter flour = starter weight ÷ (1 + starter hydration ÷ 100). Starter water = starter weight − starter flour. Total hydration = total water ÷ total flour × 100.",
     example:
       "With 500 g added flour, 350 g added water and 100 g of 100%-hydration starter, the starter contributes 50 g flour and 50 g water. Total hydration is 400 ÷ 550 × 100 = 72.7%, while added-water hydration is 70%.",
     limit:
-      "The starter amount is the portion that goes into the dough. Exclude your reserve. Hydration compares flour and water by weight; flour type and other ingredients still change handling. This calculator does not account for water in milk, eggs, fruit or other additions.",
+      "The starter amount is the portion that goes into the dough. Exclude your reserve. Hydration compares flour and water by weight; flour type and other ingredients still change handling. This example does not account for water in milk, eggs, fruit or other additions.",
     links: [
       {
         href: "/journal/calculate-sourdough-hydration-with-starter",
@@ -74,7 +74,7 @@ export const tools = [
   },
   {
     slug: "sourdough-rise-calculator",
-    title: "Sourdough Percentage Rise Calculator",
+    title: "Sourdough Percentage Rise: Formula & Example",
     description:
       "Turn starting and current container readings into percentage dough rise, and calculate the mark for a recipe’s target rise.",
     eyebrow: "Read the rise",
@@ -101,7 +101,7 @@ export const tools = [
   },
   {
     slug: "discard-recipe-finder",
-    title: "Sourdough Discard Recipes by Grams Available",
+    title: "Sourdough Discard Quantities: Worked Examples",
     description:
       "Find published sourdough discard recipes for 100, 113, 200 or 227 grams, with equipment and planning notes before you mix.",
     eyebrow: "Use what is in the jar",
@@ -110,7 +110,7 @@ export const tools = [
     example:
       "With 200 g available, the 100 g pancakes leave 100 g and the 113 g brownies leave 87 g. The 200 g pancake recipe uses the full portion. A recipe requiring 227 g does not fit until you have that amount.",
     limit:
-      "This is a selection tool, not a recipe scaler. Use the published formula’s hydration, ingredients and cooking directions. Keep discard from a healthy established starter, label the oldest collection date, and discard suspect growth or jars with an uncertain history. Cook raw flour, eggs and discard fully.",
+      "This is a static quantity example, not a recipe selector or scaler. Use the published formula’s hydration, ingredients and cooking directions. Keep discard from a healthy established starter, label the oldest collection date, and discard suspect growth or jars with an uncertain history. Cook raw flour, eggs and discard fully.",
     links: [
       {
         href: "/journal/sourdough-discard-recipes-by-amount",

@@ -1,44 +1,11 @@
 import Link from "next/link";
 export function LogoMark({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="44"
-      height="44"
-      viewBox="0 0 48 48"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M7 29C7 16 15 8 25 8s17 9 17 21c0 8-7 12-18 12S7 37 7 29Z"
-        fill="currentColor"
-      />
-      <path
-        d="m18 17-5 9m14-11-7 14m15-10-5 10"
-        stroke="#f8f7f0"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 35c7 3 17 3 24-1"
-        stroke="#f8f7f0"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  return <svg className={className} width="44" height="44" viewBox="0 0 128 128" fill="currentColor" aria-hidden="true">
+    <path fillRule="evenodd" d="M104 29C94 12 76 6 56 10C27 16 11 42 14 70C17 99 41 119 70 118C87 117 101 108 109 94C114 85 108 80 100 84C87 90 74 84 70 73C64 56 77 40 95 41C106 42 111 38 104 29Z M29 69C42 46 62 30 88 23C65 35 47 51 29 69Z" />
+  </svg>;
 }
 export function Brand({ light = false }: { light?: boolean }) {
-  return (
-    <Link
-      href="/"
-      className={`brand ${light ? "brand-light" : ""}`}
-      aria-label="Crispy Crust home"
-    >
-      <LogoMark />
-      <span>
-        Crispy <em>Crust</em>
-      </span>
-    </Link>
-  );
+  return <Link href="/" className={`brand ${light ? "brand-light" : ""}`} aria-label="Crispy Crust home">
+    <LogoMark /><span>Crispy <em>Crust</em></span>
+  </Link>;
 }
