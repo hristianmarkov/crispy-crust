@@ -2,17 +2,17 @@
 
 ## Running release checklist
 
-### Current launch checkpoint · 18 November 2026
+### Current launch checkpoint · 20 November 2026
 
 The authoritative running list is [Launch status](../docs/mobile-app/LAUNCH_STATUS.md), with [premium decisions](../docs/mobile-app/PREMIUM_DECISIONS.md). New signed builds and uploads were authorized by the owner on 20 November. Older dated entries below are historical checkpoints.
 
 - **Completed:** published RevenueCat paywall; Flutter RevenueCatUI integration; account-wide free 3/Pro 60 monthly coach limits and 20/day cap; deployed quota/API/webhook; authenticated signed sandbox webhook; Google scoped billing access/APIs/topic; core UI store assets; live support/privacy/terms/deletion pages; Apple age rating; Google privacy/no ads/government/financial/health declarations and category/support contact; Apple privacy published.
 - **Billing left:** Google catalogue-write validation blocker (purchase credentials now show valid), Android monthly/annual plans and RevenueCat mappings, reviewed regional prices, owner purchase/restore/notification acceptance, then production cutover. Final UK prices remain GBP 2.99/29.99; both final UK prices are verified in the approved preview; the RevenueCat plan has a Google credential blocker and is not applied.
-- **Stores left:** Apple content rights (privacy disclosures are published), remaining Google content/access/Data safety/trader declarations, reviewer contact/access, native paywall review captures and applicable country filings. Nothing submitted for public review.
+- **Stores left:** signed iOS archive/upload/processing, native paywall review captures and final public review. Apple rights, privacy and reviewer details are saved; Google App content has no outstanding declarations. Android build 7 is available internally.
 - **Google access gate:** closed test with 12 opted-in testers for 14 days; current count 0. Internal testing is insufficient.
-- **Owner tasks:** SMTP, native sign-in, device and connected-service acceptance. Build 5 predates current local work. Signed iOS archive/fresh Android release are now authorized and pending preparation.
+- **Owner tasks:** SMTP, native sign-in on physical phones, device and connected-service acceptance. Android build 7 contains the current subscription fixes; signed iOS candidate is in progress.
 - **Recipe evidence:** corrected ingredients, methods, cues, proof/preheat scheduling and gradual cooling/recovery. All 30 recipes remain experimental, none kitchen validated. Generated images are references.
-- **Checks:** 140 Flutter tests, 58 backend tests plus typecheck, 11 content tests and website production build passed. No new mobile Supabase advisor findings. Device/provider/kitchen acceptance remains separate.
+- **Checks:** 142 Flutter app tests, 59 backend tests plus typecheck, 11 content tests and website production build passed. A headless Android emulator verified password sign-in and server Pro access; a live OpenAI coach job completed. This does not prove a paid store transaction.
 
 ### Reviewer follow-up · 20 November 2026
 

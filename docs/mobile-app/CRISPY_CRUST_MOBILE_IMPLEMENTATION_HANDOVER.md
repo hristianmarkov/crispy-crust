@@ -4,7 +4,7 @@
 
 For work after this handover, see the [running release checklist](../../mobile/IMPLEMENTATION_STATUS.md) and [owner setup](../../mobile/OWNER_SETUP.md).
 
-Read [Launch status](LAUNCH_STATUS.md) first for the latest 18 November checkpoint. The paywall is published, server allowance/webhook updates deployed, public policy pages live, and core UI screenshots uploaded to Apple and Google. Google billing validation/base plans, remaining declarations, owner acceptance, closed testing and signed candidates remain outstanding. New release builds and uploads were authorized on 20 November. Historical snapshots below must not be read as the current checklist.
+Read [Launch status](LAUNCH_STATUS.md) first for the latest 20 November checkpoint. Android build 7 is available to internal testers. Google App content declarations are complete. Native reviewer sign-in, server-verified promotional Pro access and a live OpenAI coach response were verified. Apple listing/privacy/content rights/reviewer details and signing resources are saved; signed TestFlight upload is being verified. Google billing catalogue plans/mappings, real purchase acceptance, owner SMTP, closed testing and device acceptance remain outstanding. Historical snapshots below are not the current checklist.
 
 The 16 November kitchen redesign centres Home on starting and continuing a bake. The five tabs are Starters, Recipes, Home, Features and Journal. New local records include optional feed reminder settings on starter jars and a recipe step reference on guided timers. The update uses the existing database and sync record types. Use the release checklist for Android build 3 verification and current device acceptance.
 

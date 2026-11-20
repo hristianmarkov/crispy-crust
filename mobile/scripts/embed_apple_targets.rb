@@ -96,6 +96,24 @@ plist(widget_plist, base_plist.merge({'CFBundleDisplayName' => 'Crispy Crust', '
   'NSExtension' => {'NSExtensionPointIdentifier' => 'com.apple.widgetkit-extension'}}))
 watch = add_target(project, 'CrispyWatch', :watchos, '9.0', [watch_file, core_file], watch_plist, "#{bundle_id}.watch", app_version, app_build)
 widget = add_target(project, 'CrispyWidgets', :ios, '16.2', [widget_file], widget_plist, "#{bundle_id}.widgets", app_version, app_build)
+# Watch apps need their own icon catalogue for App Store validation. The brand
+# source is an opaque 1024px RGB PNG; Xcode generates the watch size variants.
+watch_assets = File.join(watch_dir, 'Assets.xcassets')
+watch_icon = File.join(watch_assets, 'AppIcon.appiconset')
+FileUtils.mkdir_p(watch_icon)
+FileUtils.cp(File.join(mobile, 'apps/mobile/assets/brand/app-icon.png'), File.join(watch_icon, 'AppIcon.png'))
+File.write(File.join(watch_assets, 'Contents.json'), JSON.pretty_generate({'info' => {'author' => 'xcode', 'version' => 1}}))
+File.write(File.join(watch_icon, 'Contents.json'), JSON.pretty_generate({
+  'images' => [{'filename' => 'AppIcon.png', 'idiom' => 'universal', 'platform' => 'watchos', 'size' => '1024x1024'}],
+  'info' => {'author' => 'xcode', 'version' => 1}
+}))
+watch_group = project.main_group.find_subpath('RunnerCompanions', true)
+watch_assets_path = Pathname.new(watch_assets).relative_path_from(Pathname.new(project.project_dir)).to_s
+watch_assets_ref = watch_group.files.find { |item| item.path == watch_assets_path } || watch_group.new_file(watch_assets_path)
+unless watch.resources_build_phase.files.any? { |item| item.file_ref == watch_assets_ref }
+  watch.resources_build_phase.add_file_reference(watch_assets_ref)
+end
+watch.build_configurations.each { |config| config.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon' }
 embed(project, runner, widget, 'Embed Crispy Widgets', '', '13')
 embed(project, runner, watch, 'Embed Crispy Watch', '$(CONTENTS_FOLDER_PATH)/Watch', '16')
 order_companion_embed_phases(runner)
