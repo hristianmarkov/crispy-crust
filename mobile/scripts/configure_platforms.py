@@ -141,6 +141,8 @@ if ios.exists():
     with plist.open('rb') as f:
         config = plistlib.load(f)
     config['CFBundleDisplayName'] = 'Crispy Crust'
+    # HTTPS, authentication and system credential storage use exempt encryption.
+    config['ITSAppUsesNonExemptEncryption'] = False
     config['NSSupportsLiveActivities'] = True
     config['com.posthog.posthog.AUTO_INIT'] = False
     build_config_path = Path(os.environ.get('CRISPY_CRUST_BUILD_CONFIG', root / 'config/development.json'))
